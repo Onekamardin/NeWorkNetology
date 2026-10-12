@@ -11,6 +11,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -21,12 +22,14 @@ import kotlinx.coroutines.launch
 import ru.netology.nework.databinding.ActivityMainBinding
 import ru.netology.nework.databinding.ScreenLoginBinding
 import ru.netology.nework.databinding.ScreenRegisterBinding
+import ru.netology.nework.databinding.ScreenCreatePostBinding
 import ru.netology.nework.data.model.Event
 import ru.netology.nework.data.model.Post
 import ru.netology.nework.data.model.User
 import ru.netology.nework.ui.FeedState
 import ru.netology.nework.ui.AuthOperation
 import ru.netology.nework.ui.AuthState
+import ru.netology.nework.ui.CreatePostState
 import ru.netology.nework.ui.MainViewModel
 import ru.netology.nework.ui.adapter.EventAdapter
 import ru.netology.nework.ui.adapter.PostAdapter
@@ -38,8 +41,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var loginBinding: ScreenLoginBinding? = null
     private var registerBinding: ScreenRegisterBinding? = null
+    private var createPostBinding: ScreenCreatePostBinding? = null
     private var selectedAvatarUri: Uri? = null
     private var authScreenOpen = false
+    private var postCreationScreenOpen = false
 
     private val avatarPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) showSelectedAvatar(uri)
@@ -61,7 +66,7 @@ class MainActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (authScreenOpen) showFeedScreen() else finish()
+                if (authScreenOpen || postCreationScreenOpen) showFeedScreen() else finish()
             }
         })
 
@@ -70,7 +75,8 @@ class MainActivity : AppCompatActivity() {
             true
         }
         binding.createButton.setOnClickListener {
-            showMessage(getString(R.string.create_action_coming_soon))
+            if (selectedTab == R.id.menu_posts) showCreatePostScreen()
+            else showMessage(getString(R.string.create_event_coming_soon))
         }
 
         lifecycleScope.launch {
@@ -79,6 +85,7 @@ class MainActivity : AppCompatActivity() {
                 launch { viewModel.events.collect { render(it, eventAdapter, getString(R.string.no_events)) } }
                 launch { viewModel.users.collect { render(it, userAdapter, getString(R.string.no_users)) } }
                 launch { viewModel.auth.collect(::renderAuthState) }
+                launch { viewModel.createPost.collect(::renderCreatePostState) }
             }
         }
 
@@ -88,10 +95,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.app_bar_menu, menu)
         val authenticated = viewModel.isAuthenticated()
-        menu.findItem(R.id.action_login).isVisible = !authenticated
-        menu.findItem(R.id.action_register).isVisible = !authenticated
-        menu.findItem(R.id.action_profile).isVisible = authenticated
-        menu.findItem(R.id.action_logout).isVisible = authenticated
+        menu.findItem(R.id.action_save).isVisible = postCreationScreenOpen
+        menu.findItem(R.id.action_login).isVisible = !authenticated && !postCreationScreenOpen
+        menu.findItem(R.id.action_register).isVisible = !authenticated && !postCreationScreenOpen
+        menu.findItem(R.id.action_profile).isVisible = authenticated && !postCreationScreenOpen
+        menu.findItem(R.id.action_logout).isVisible = authenticated && !postCreationScreenOpen
         return true
     }
 
@@ -109,6 +117,10 @@ class MainActivity : AppCompatActivity() {
                 showMessage(getString(R.string.profile_coming_soon))
                 true
             }
+            R.id.action_save -> {
+                savePost()
+                true
+            }
             R.id.action_logout -> {
                 viewModel.logout()
                 invalidateOptionsMenu()
@@ -122,6 +134,8 @@ class MainActivity : AppCompatActivity() {
     private fun showLoginScreen() {
         viewModel.clearAuthState()
         authScreenOpen = true
+        postCreationScreenOpen = false
+        createPostBinding = null
         registerBinding = null
         binding.screenContainer.removeAllViews()
         val screen = ScreenLoginBinding.inflate(layoutInflater, binding.screenContainer, false)
@@ -144,6 +158,8 @@ class MainActivity : AppCompatActivity() {
     private fun showRegisterScreen() {
         viewModel.clearAuthState()
         authScreenOpen = true
+        postCreationScreenOpen = false
+        createPostBinding = null
         loginBinding = null
         selectedAvatarUri = null
         binding.screenContainer.removeAllViews()
@@ -241,13 +257,74 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFeedScreen() {
         authScreenOpen = false
+        postCreationScreenOpen = false
         loginBinding = null
         registerBinding = null
+        createPostBinding = null
         binding.screenContainer.removeAllViews()
         binding.screenContainer.addView(binding.feedScreen.root)
         binding.bottomNavigation.visibility = View.VISIBLE
         binding.toolbar.title = getString(R.string.app_name)
+        invalidateOptionsMenu()
         showTab(selectedTab)
+    }
+
+    private fun showCreatePostScreen() {
+        if (!viewModel.isAuthenticated()) {
+            AlertDialog.Builder(this)
+                .setMessage(R.string.auth_required_to_create)
+                .setPositiveButton(R.string.login) { _, _ -> showLoginScreen() }
+                .setNeutralButton(R.string.register) { _, _ -> showRegisterScreen() }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+
+        authScreenOpen = false
+        postCreationScreenOpen = true
+        loginBinding = null
+        registerBinding = null
+        binding.screenContainer.removeAllViews()
+        val screen = ScreenCreatePostBinding.inflate(layoutInflater, binding.screenContainer, false)
+        createPostBinding = screen
+        binding.screenContainer.addView(screen.root)
+        binding.bottomNavigation.visibility = View.GONE
+        binding.createButton.visibility = View.GONE
+        binding.toolbar.title = getString(R.string.create_post_title)
+        invalidateOptionsMenu()
+        screen.cancelButton.setOnClickListener { showFeedScreen() }
+    }
+
+    private fun savePost() {
+        val screen = createPostBinding ?: return
+        val content = screen.contentInput.text?.toString()?.trim().orEmpty()
+        screen.contentLayout.error = if (content.isBlank()) getString(R.string.error_required) else null
+        if (content.isNotBlank()) viewModel.createPost(content)
+    }
+
+    private fun renderCreatePostState(state: CreatePostState) {
+        val screen = createPostBinding ?: return
+        when (state) {
+            CreatePostState.Idle -> Unit
+            CreatePostState.Loading -> {
+                screen.createProgress.visibility = View.VISIBLE
+                screen.cancelButton.isEnabled = false
+                binding.toolbar.menu.findItem(R.id.action_save)?.isEnabled = false
+            }
+            CreatePostState.Success -> {
+                binding.toolbar.menu.findItem(R.id.action_save)?.isEnabled = true
+                showMessage(getString(R.string.post_created))
+                viewModel.clearCreatePostState()
+                showFeedScreen()
+            }
+            is CreatePostState.Error -> {
+                screen.createProgress.visibility = View.GONE
+                screen.cancelButton.isEnabled = true
+                binding.toolbar.menu.findItem(R.id.action_save)?.isEnabled = true
+                showMessage(state.message)
+                viewModel.clearCreatePostState()
+            }
+        }
     }
 
     private fun showTab(itemId: Int) {

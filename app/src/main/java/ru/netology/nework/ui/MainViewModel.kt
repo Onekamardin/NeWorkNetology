@@ -31,6 +31,13 @@ sealed interface AuthState {
     data class NetworkError(val operation: AuthOperation) : AuthState
 }
 
+sealed interface CreatePostState {
+    data object Idle : CreatePostState
+    data object Loading : CreatePostState
+    data object Success : CreatePostState
+    data class Error(val message: String) : CreatePostState
+}
+
 @HiltViewModel
 class MainViewModel @Inject constructor(private val repository: NeWorkRepository) : ViewModel() {
     private val _auth = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -42,6 +49,9 @@ class MainViewModel @Inject constructor(private val repository: NeWorkRepository
     val events: StateFlow<FeedState<Event>> = _events.asStateFlow()
     private val _users = MutableStateFlow(FeedState<User>())
     val users: StateFlow<FeedState<User>> = _users.asStateFlow()
+
+    private val _createPost = MutableStateFlow<CreatePostState>(CreatePostState.Idle)
+    val createPost: StateFlow<CreatePostState> = _createPost.asStateFlow()
 
     fun isAuthenticated(): Boolean = repository.currentUser() != null
 
@@ -75,6 +85,21 @@ class MainViewModel @Inject constructor(private val repository: NeWorkRepository
     }
 
     fun clearAuthState() { _auth.value = AuthState.Idle }
+
+    fun createPost(content: String) = viewModelScope.launch {
+        _createPost.value = CreatePostState.Loading
+        runCatching { repository.createPost(content) }
+            .onSuccess { _createPost.value = CreatePostState.Success }
+            .onFailure { error ->
+                val message = when (error) {
+                    is retrofit2.HttpException -> "Ошибка сервера (${error.code()})"
+                    else -> error.message ?: "Не удалось опубликовать пост"
+                }
+                _createPost.value = CreatePostState.Error(message)
+            }
+    }
+
+    fun clearCreatePostState() { _createPost.value = CreatePostState.Idle }
 
     fun loadPosts() = viewModelScope.launch {
         _posts.value = _posts.value.copy(loading = true, error = null)

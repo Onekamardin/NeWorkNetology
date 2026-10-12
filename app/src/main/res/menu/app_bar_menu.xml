@@ -23,4 +23,10 @@
         android:title="@string/logout"
         android:visible="false"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_save"
+        android:title="@string/save"
+        android:visible="false"
+        app:showAsAction="always" />
 </menu>

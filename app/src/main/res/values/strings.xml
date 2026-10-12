@@ -30,7 +30,14 @@
     <string name="logout_success">Вы вышли из аккаунта</string>
     <string name="server_error_code">Ошибка сервера (%1$d)</string>
     <string name="create">Создать</string>
-    <string name="create_action_coming_soon">Создание публикаций добавим следующим этапом</string>
+    <string name="create_event_coming_soon">Создание событий добавим следующим этапом</string>
+    <string name="auth_required_to_create">Чтобы создать пост, войдите или зарегистрируйтесь</string>
+    <string name="create_post_title">Новый пост</string>
+    <string name="post_content_hint">Текст поста</string>
+    <string name="post_features_next_steps">Добавление фото, видео, аудио, ссылки, места и упоминаний будет подключено отдельными шагами.</string>
+    <string name="post_created">Пост опубликован</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
     <string name="no_posts">Постов пока нет</string>
     <string name="no_events">Событий пока нет</string>
     <string name="no_users">Пользователей пока нет</string>
