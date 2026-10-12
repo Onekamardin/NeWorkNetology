@@ -1,0 +1,64 @@
+package ru.netology.nework.data.model
+
+data class User(
+    val id: Long,
+    val login: String = "",
+    val name: String = "",
+    val avatar: String? = null,
+    val online: Boolean = false,
+)
+
+data class Post(
+    val id: Long,
+    val authorId: Long = 0,
+    // В ответе сервера author приходит строкой, например именем автора.
+    val author: String? = null,
+    val authorAvatar: String? = null,
+    val content: String = "",
+    val published: String = "",
+    val likeOwnerIds: List<Long> = emptyList(),
+    val likedByMe: Boolean = false,
+    val attachment: Attachment? = null,
+    val link: String? = null,
+    val coords: Coordinates? = null,
+    val mentionIds: List<Long> = emptyList(),
+)
+
+data class Event(
+    val id: Long,
+    val authorId: Long = 0,
+    // В ответе сервера author приходит строкой, а не вложенным объектом User.
+    val author: String? = null,
+    val authorAvatar: String? = null,
+    val content: String = "",
+    val published: String = "",
+    val datetime: String = "",
+    val type: String = "ONLINE",
+    val likeOwnerIds: List<Long> = emptyList(),
+    val likedByMe: Boolean = false,
+    val attachment: Attachment? = null,
+    val link: String? = null,
+    val coords: Coordinates? = null,
+    val speakerIds: List<Long> = emptyList(),
+    val participantsIds: List<Long> = emptyList(),
+)
+
+data class Attachment(val url: String, val type: String)
+data class Coordinates(val latitude: Double, val longitude: Double)
+data class Job(
+    val id: Long,
+    val name: String = "",
+    val position: String = "",
+    val start: String = "",
+    val finish: String? = null,
+    val link: String? = null,
+)
+
+data class Credentials(val login: String, val password: String)
+data class Registration(
+    val login: String,
+    val password: String,
+    val name: String,
+    val avatar: String? = null,
+)
+

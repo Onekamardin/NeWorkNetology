@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/menu_posts" android:icon="@android:drawable/ic_menu_edit" android:title="@string/posts" />
+    <item android:id="@+id/menu_events" android:icon="@android:drawable/ic_menu_my_calendar" android:title="@string/events" />
+    <item android:id="@+id/menu_users" android:icon="@android:drawable/ic_menu_view" android:title="@string/users" />
+</menu>

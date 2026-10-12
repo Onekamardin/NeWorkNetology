@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">NeWork</string>
+    <string name="posts">Посты</string>
+    <string name="events">События</string>
+    <string name="users">Пользователи</string>
+    <string name="login">Вход</string>
+    <string name="register">Регистрация</string>
+    <string name="auth_screen_coming_soon">Экран авторизации ещё не добавлен</string>
+    <string name="create">Создать</string>
+    <string name="create_action_coming_soon">Создание публикаций добавим следующим этапом</string>
+    <string name="no_posts">Постов пока нет</string>
+    <string name="no_events">Событий пока нет</string>
+    <string name="no_users">Пользователей пока нет</string>
+    <string name="user_fallback">Пользователь</string>
+    <string name="likes_count">♡ %1$d</string>
+    <string name="event_date_line">%1$s · %2$s</string>
+</resources>
