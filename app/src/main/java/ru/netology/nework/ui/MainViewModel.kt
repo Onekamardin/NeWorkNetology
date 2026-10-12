@@ -1,11 +1,9 @@
 package ru.netology.nework.ui
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import okhttp3.MultipartBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +12,7 @@ import ru.netology.nework.data.NeWorkRepository
 import ru.netology.nework.data.model.Event
 import ru.netology.nework.data.model.Credentials
 import ru.netology.nework.data.model.Post
+import ru.netology.nework.data.model.Registration
 import ru.netology.nework.data.model.User
 
 data class FeedState<T>(
@@ -29,7 +28,7 @@ sealed interface AuthState {
     data class Loading(val operation: AuthOperation) : AuthState
     data class Success(val operation: AuthOperation) : AuthState
     data class HttpError(val operation: AuthOperation, val code: Int) : AuthState
-    data class NetworkError(val operation: AuthOperation, val detail: String) : AuthState
+    data class NetworkError(val operation: AuthOperation) : AuthState
 }
 
 sealed interface CreatePostState {
@@ -68,18 +67,13 @@ class MainViewModel @Inject constructor(private val repository: NeWorkRepository
                     AuthState.HttpError(AuthOperation.LOGIN, response.code())
                 }
             }
-            .onFailure { error ->
-                Log.e("NeWorkAuth", "Login request failed", error)
-                _auth.value = AuthState.NetworkError(
-                    AuthOperation.LOGIN,
-                    error.localizedMessage ?: error.javaClass.simpleName,
-                )
-            }
+            .onFailure { _auth.value = AuthState.NetworkError(AuthOperation.LOGIN) }
     }
 
-    fun register(login: String, name: String, password: String, avatar: MultipartBody.Part?) = viewModelScope.launch {
+    fun register(login: String, name: String, password: String, avatar: String? = null) = viewModelScope.launch {
         _auth.value = AuthState.Loading(AuthOperation.REGISTER)
-        runCatching { repository.register(login, name, password, avatar) }
+        val request = Registration(login = login, password = password, name = name, avatar = avatar)
+        runCatching { repository.register(request) }
             .onSuccess { response ->
                 _auth.value = if (response.isSuccessful && response.body() != null) {
                     AuthState.Success(AuthOperation.REGISTER)
@@ -87,13 +81,7 @@ class MainViewModel @Inject constructor(private val repository: NeWorkRepository
                     AuthState.HttpError(AuthOperation.REGISTER, response.code())
                 }
             }
-            .onFailure { error ->
-                Log.e("NeWorkAuth", "Registration request failed", error)
-                _auth.value = AuthState.NetworkError(
-                    AuthOperation.REGISTER,
-                    error.localizedMessage ?: error.javaClass.simpleName,
-                )
-            }
+            .onFailure { _auth.value = AuthState.NetworkError(AuthOperation.REGISTER) }
     }
 
     fun clearAuthState() { _auth.value = AuthState.Idle }

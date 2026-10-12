@@ -12,9 +12,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AlertDialog
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -22,9 +19,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import ru.netology.nework.databinding.ActivityMainBinding
 import ru.netology.nework.databinding.ScreenLoginBinding
 import ru.netology.nework.databinding.ScreenRegisterBinding
@@ -65,7 +59,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        applySystemBarInsets()
 
         setSupportActionBar(binding.toolbar)
         binding.feedScreen.recyclerView.layoutManager = LinearLayoutManager(this)
@@ -97,29 +90,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         showTab(R.id.menu_posts)
-    }
-
-    /** Оставляет содержимое экрана ниже статус-бара и выше системной навигации. */
-    private fun applySystemBarInsets() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        val initialLeft = binding.root.paddingLeft
-        val initialTop = binding.root.paddingTop
-        val initialRight = binding.root.paddingRight
-        val initialBottom = binding.root.paddingBottom
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val safeInsets = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            )
-            view.setPadding(
-                initialLeft + safeInsets.left,
-                initialTop + safeInsets.top,
-                initialRight + safeInsets.right,
-                initialBottom + safeInsets.bottom,
-            )
-            insets
-        }
-        ViewCompat.requestApplyInsets(binding.root)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -216,14 +186,7 @@ class MainActivity : AppCompatActivity() {
             }
             val valid = login.isNotBlank() && name.isNotBlank() && password.isNotBlank() &&
                 repeatedPassword.isNotBlank() && repeatedPassword == password
-            if (valid) {
-                val avatarPart = selectedAvatarUri?.let(::createAvatarPart)
-                if (selectedAvatarUri != null && avatarPart == null) {
-                    showMessage(getString(R.string.register_photo_read_error))
-                } else {
-                    viewModel.register(login, name, password, avatarPart)
-                }
-            }
+            if (valid) viewModel.register(login, name, password)
         }
         screen.openLogin.setOnClickListener { showLoginScreen() }
     }
@@ -251,19 +214,6 @@ class MainActivity : AppCompatActivity() {
         registerBinding?.avatarPreview?.setImageURI(uri)
     }
 
-    private fun createAvatarPart(uri: Uri): MultipartBody.Part? = runCatching {
-        val mimeType = contentResolver.getType(uri) ?: return@runCatching null
-        val extension = when (mimeType) {
-            "image/jpeg" -> "jpg"
-            "image/png" -> "png"
-            else -> return@runCatching null
-        }
-        val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: return@runCatching null
-        val body = bytes.toRequestBody(mimeType.toMediaType())
-        MultipartBody.Part.createFormData("file", "avatar.$extension", body)
-    }.getOrNull()
-
     private fun renderAuthState(state: AuthState) {
         when (state) {
             AuthState.Idle -> Unit
@@ -281,8 +231,7 @@ class MainActivity : AppCompatActivity() {
                 setAuthLoading(state.operation, false)
                 val message = when {
                     state.code == 400 && state.operation == AuthOperation.LOGIN -> getString(R.string.login_bad_credentials)
-                    (state.code == 400 || state.code == 403) && state.operation == AuthOperation.REGISTER -> getString(R.string.register_duplicate_login)
-                    state.code == 415 && state.operation == AuthOperation.REGISTER -> getString(R.string.register_photo_format_error)
+                    state.code == 400 && state.operation == AuthOperation.REGISTER -> getString(R.string.register_duplicate_login)
                     else -> getString(R.string.server_error_code, state.code)
                 }
                 showMessage(message)
@@ -290,16 +239,7 @@ class MainActivity : AppCompatActivity() {
             }
             is AuthState.NetworkError -> {
                 setAuthLoading(state.operation, false)
-                val title = if (state.operation == AuthOperation.REGISTER) {
-                    R.string.register_title
-                } else {
-                    R.string.login_title
-                }
-                AlertDialog.Builder(this)
-                    .setTitle(title)
-                    .setMessage(getString(R.string.auth_network_error_details, state.detail))
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
+                showMessage(getString(R.string.auth_network_error))
                 viewModel.clearAuthState()
             }
         }

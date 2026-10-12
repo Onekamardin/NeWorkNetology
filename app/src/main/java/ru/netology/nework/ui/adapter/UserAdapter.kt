@@ -18,9 +18,8 @@ class UserAdapter : ListAdapter<User, UserAdapter.UserHolder>(Diff) {
     class UserHolder(private val binding: ItemUserBinding) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(user: User) {
-            val login = user.login.orEmpty()
-            binding.name.text = user.name?.takeIf(String::isNotBlank) ?: login
-            binding.login.text = login
+            binding.name.text = user.name.ifBlank { user.login }
+            binding.login.text = user.login
         }
     }
 

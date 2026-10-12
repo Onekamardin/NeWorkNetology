@@ -7,11 +7,9 @@
 - Single Activity с XML-разметкой экранов, View Binding и RecyclerView для списков.
 - Нижняя навигация по постам, событиям и пользователям.
 - XML-формы входа и регистрации с проверкой обязательных полей и повторного пароля.
-- Регистрация отправляется в формате `multipart/form-data` с полями `login`, `pass`, `name` и необязательным файлом аватара `file`.
 - Создание и отправка текстовых постов для авторизованного пользователя.
 - Если пользователь не вошёл, кнопка создания поста предлагает перейти ко входу или регистрации.
 - Обработка ответов сервера 400, сохранение данных пользователя и токена авторизации.
-- В профиле локально сохраняются логин и имя из формы, если сервер не включает их в ответ регистрации.
 - Выбор аватара с проверкой JPEG/PNG и ограничением 2048 × 2048 пикселей.
 - Сетевой слой Retrofit с Kotlin Coroutines и DI на Dagger Hilt.
 - Плагин Hilt подключается через `buildscript classpath` из Maven Central, чтобы Gradle не искал отдельный plugin marker.
@@ -43,7 +41,7 @@
 | `app/src/main/res/layout/screen_create_post.xml` | Форма создания текстового поста |
 | `app/src/main/java/ru/netology/nework/data/AuthStore.kt` | Локальное состояние входа и токен |
 | `app/src/main/java/ru/netology/nework/ui/MainViewModel.kt` | Загрузка данных и состояния экрана |
-| `app/src/main/java/ru/netology/nework/data/api/NeWorkApi.kt` | Адреса и формат запросов сервера |
+| `app/src/main/java/ru/netology/nework/data/api/NeWorkApi.kt` | Адреса запросов сервера |
 | `app/src/main/java/ru/netology/nework/data/model/Models.kt` | Модели JSON-ответов |
 | `app/src/main/java/ru/netology/nework/di/NetworkModule.kt` | Retrofit, OkHttp и заголовок ключа |
 | `app/src/main/java/ru/netology/nework/data/NeWorkRepository.kt` | Посредник между экраном и API |
@@ -58,4 +56,4 @@
 
 В Android-приложении включён HTTP-доступ, потому что адрес учебного сервера использует `http://`. Не размещайте `apikey.properties` в публичном GitHub-репозитории. Для приложения, которое будет опубликовано, ключ, встроенный в клиент, нельзя считать секретным: его можно извлечь из APK.
 
-Модели и маршруты проверяются по Swagger сервера при реализации каждого запроса.
+Маршруты и JSON-модели в `NeWorkApi.kt` — предварительные. Swagger сервера в текущей среде вернул 502, поэтому перед следующим этапом их нужно сверить с доступной схемой API.

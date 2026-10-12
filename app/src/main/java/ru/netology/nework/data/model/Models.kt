@@ -2,8 +2,8 @@ package ru.netology.nework.data.model
 
 data class User(
     val id: Long,
-    val login: String? = null,
-    val name: String? = null,
+    val login: String = "",
+    val name: String = "",
     val avatar: String? = null,
     val online: Boolean = false,
     val token: String? = null,
@@ -56,4 +56,10 @@ data class Job(
 )
 
 data class Credentials(val login: String, val password: String)
+data class Registration(
+    val login: String,
+    val password: String,
+    val name: String,
+    val avatar: String? = null,
+)
 
