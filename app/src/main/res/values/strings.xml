@@ -21,7 +21,10 @@
     <string name="error_avatar_size">Размер изображения не должен превышать 2048 × 2048 пикселей</string>
     <string name="login_bad_credentials">Неправильный логин или пароль</string>
     <string name="register_duplicate_login">Пользователь с таким логином уже зарегистрирован</string>
+    <string name="register_photo_format_error">Сервер отклонил фото. Выберите изображение JPEG или PNG.</string>
+    <string name="register_photo_read_error">Не удалось прочитать выбранное фото. Выберите его ещё раз.</string>
     <string name="auth_network_error">Не удалось связаться с сервером</string>
+    <string name="auth_network_error_details">Не удалось связаться с сервером или обработать его ответ. Подробности: %1$s</string>
     <string name="login_success">Вход выполнен</string>
     <string name="register_success">Аккаунт создан</string>
     <string name="profile">Мой профиль</string>
