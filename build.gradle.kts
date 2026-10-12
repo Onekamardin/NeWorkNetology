@@ -4,7 +4,6 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // Загрузка напрямую из Maven Central обходит поиск plugin marker.
         classpath("com.google.dagger:hilt-android-gradle-plugin:2.52")
     }
 }

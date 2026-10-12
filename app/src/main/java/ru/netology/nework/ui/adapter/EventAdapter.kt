@@ -5,19 +5,43 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import ru.netology.nework.data.model.Event
+import android.view.View
+import android.widget.PopupMenu
+import ru.netology.nework.domain.model.Event
 import ru.netology.nework.databinding.ItemEventBinding
 import ru.netology.nework.R
 import ru.netology.nework.ui.formatServerDate
+import ru.netology.nework.ui.openLink
 
-class EventAdapter : ListAdapter<Event, EventAdapter.EventHolder>(Diff) {
+class EventAdapter(
+    private val onLike: (Event) -> Unit,
+    private val onOpen: (Event) -> Unit,
+    private val currentUserId: () -> Long?,
+    private val onDelete: (Event) -> Unit,
+) : ListAdapter<Event, EventAdapter.EventHolder>(Diff) {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = EventHolder(
         ItemEventBinding.inflate(LayoutInflater.from(parent.context), parent, false),
     )
 
-    override fun onBindViewHolder(holder: EventHolder, position: Int) = holder.bind(getItem(position))
+    override fun onBindViewHolder(holder: EventHolder, position: Int) {
+        val event = getItem(position)
+        holder.bind(event)
+        holder.likeButton.setOnClickListener { onLike(event) }
+        holder.itemView.setOnClickListener { onOpen(event) }
+        val canDelete = currentUserId()?.let { it == event.authorId } == true
+        holder.binding.menu.visibility = if (canDelete) View.VISIBLE else View.GONE
+        holder.binding.menu.setOnClickListener { button ->
+            PopupMenu(button.context, button).apply {
+                menu.add(R.string.delete).setOnMenuItemClickListener {
+                    onDelete(event)
+                    true
+                }
+                show()
+            }
+        }
+    }
 
-    class EventHolder(private val binding: ItemEventBinding) : RecyclerView.ViewHolder(binding.root) {
+    class EventHolder(internal val binding: ItemEventBinding) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(event: Event) {
             binding.author.text = event.author?.ifBlank { itemView.context.getString(R.string.user_fallback) }
@@ -28,8 +52,14 @@ class EventAdapter : ListAdapter<Event, EventAdapter.EventHolder>(Diff) {
                 formatServerDate(event.datetime),
             )
             binding.content.text = event.content
-            binding.likes.text = itemView.context.getString(R.string.likes_count, event.likeOwnerIds.size)
+            binding.link.text = event.link
+            binding.link.visibility = if (event.link.isNullOrBlank()) android.view.View.GONE else android.view.View.VISIBLE
+            binding.link.setOnClickListener { event.link?.let { openLink(itemView.context, it) } }
+            val textId = if (event.likedByMe) R.string.likes_count_liked else R.string.likes_count
+            binding.likes.text = itemView.context.getString(textId, event.likeOwnerIds.size)
         }
+
+        val likeButton get() = binding.likes
     }
 
     private companion object Diff : DiffUtil.ItemCallback<Event>() {

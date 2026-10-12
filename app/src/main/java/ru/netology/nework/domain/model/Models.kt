@@ -1,4 +1,4 @@
-package ru.netology.nework.data.model
+package ru.netology.nework.domain.model
 
 data class User(
     val id: Long,
@@ -12,7 +12,6 @@ data class User(
 data class Post(
     val id: Long,
     val authorId: Long = 0,
-    // В ответе сервера author приходит строкой, например именем автора.
     val author: String? = null,
     val authorAvatar: String? = null,
     val content: String = "",
@@ -28,7 +27,6 @@ data class Post(
 data class Event(
     val id: Long,
     val authorId: Long = 0,
-    // В ответе сервера author приходит строкой, а не вложенным объектом User.
     val author: String? = null,
     val authorAvatar: String? = null,
     val content: String = "",
@@ -44,6 +42,16 @@ data class Event(
     val participantsIds: List<Long> = emptyList(),
 )
 
+data class EventCreateRequest(
+    val content: String,
+    val datetime: String,
+    val type: String,
+    val speakerIds: List<Long> = emptyList(),
+    val attachment: Attachment? = null,
+    val link: String? = null,
+    val coords: Coordinates? = null,
+)
+
 data class Attachment(val url: String, val type: String)
 data class Coordinates(val latitude: Double, val longitude: Double)
 data class Job(
@@ -51,6 +59,14 @@ data class Job(
     val name: String = "",
     val position: String = "",
     val start: String = "",
+    val finish: String? = null,
+    val link: String? = null,
+)
+
+data class JobCreateRequest(
+    val name: String,
+    val position: String,
+    val start: String,
     val finish: String? = null,
     val link: String? = null,
 )

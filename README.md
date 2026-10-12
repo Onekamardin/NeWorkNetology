@@ -4,20 +4,28 @@
 
 ## Что уже создано
 
-- Single Activity с XML-разметкой экранов, View Binding и RecyclerView для списков.
+- Single Activity: каждый экран (лента, вход, регистрация, профиль, создание поста, события и работы) размещён во Fragment с XML-разметкой и View Binding.
+- Переходы между экранами выполняются через Jetpack Navigation Component; список экранов и аргументы профиля описаны в `res/navigation/nav_graph.xml`.
 - Нижняя навигация по постам, событиям и пользователям.
 - XML-формы входа и регистрации с проверкой обязательных полей и повторного пароля.
 - Регистрация отправляется в формате `multipart/form-data` с полями `login`, `pass`, `name` и необязательным файлом аватара `file`.
-- Создание и отправка текстовых постов для авторизованного пользователя.
+- Создание и отправка постов для авторизованного пользователя; к посту можно добавить ссылку.
+- Создание событий для авторизованного пользователя: описание, ссылка, онлайн/офлайн формат, дата и время, выбор спикеров.
+- Просмотр профиля пользователя и своего профиля: аватар, стена с постами и список мест работы.
+- В своём профиле можно добавлять и удалять места работы; пустая дата окончания означает, что работа продолжается.
 - Если пользователь не вошёл, кнопка создания поста предлагает перейти ко входу или регистрации.
 - Обработка ответов сервера 400, сохранение данных пользователя и токена авторизации.
 - В профиле локально сохраняются логин и имя из формы, если сервер не включает их в ответ регистрации.
 - Выбор аватара с проверкой JPEG/PNG и ограничением 2048 × 2048 пикселей.
 - Сетевой слой Retrofit с Kotlin Coroutines и DI на Dagger Hilt.
+- Архитектура разбита по слоям: `data` (Retrofit, DTO, преобразование данных и хранилище), `domain` (модели, контракты и use case), `ui` (Activity, Fragment и ViewModel).
+- ViewModel разделены по задачам: авторизация, лента, публикация поста, создание события и профиль/места работы.
 - Плагин Hilt подключается через `buildscript classpath` из Maven Central, чтобы Gradle не искал отдельный plugin marker.
 - Заголовок `Api-Key` автоматически добавляется к каждому запросу.
 - Секрет хранится локально в `apikey.properties`, этот файл исключён из Git.
-- Базовые карточки поста и события.
+- Карточки поста и события показывают ссылку, по нажатию на которую открывается браузер.
+- Авторизованные пользователи могут ставить и убирать отметку «Нравится» у постов и событий; счётчик показывает актуальное количество отметок.
+- По нажатию на пост или событие открывается экран с упоминаниями, последним местом работы автора, участниками/спикерами и переходом к координатам в приложении карт.
 - Поле `author` в ответах постов и событий разбирается как строка (формат, который показал сервер при первом запуске).
 - Даты публикации и даты события форматируются как `дд.мм.гггг чч:мм` в часовом поясе устройства.
 
@@ -35,27 +43,37 @@
 
 | Путь | Назначение |
 | --- | --- |
-| `app/src/main/java/ru/netology/nework/MainActivity.kt` | Единственная Activity приложения |
+| `app/src/main/java/ru/netology/nework/ui/MainActivity.kt` | Единственная Activity: NavHost, AppBar и нижнее меню |
+| `app/src/main/res/navigation/nav_graph.xml` | Граф переходов между Fragment |
+| `app/src/main/java/ru/netology/nework/ui/fragments/` | Экранные Fragment; они выполняют переходы через `findNavController()` |
 | `app/src/main/res/layout/activity_main.xml` | Главный экран и нижняя навигация |
 | `app/src/main/res/layout/item_*.xml` | XML-карточки поста, события и пользователя |
 | `app/src/main/java/ru/netology/nework/ui/adapter/` | RecyclerView-адаптеры списков |
 | `app/src/main/res/layout/screen_login.xml` и `screen_register.xml` | Формы входа и регистрации |
 | `app/src/main/res/layout/screen_create_post.xml` | Форма создания текстового поста |
+| `app/src/main/res/layout/screen_profile.xml` | Профиль, его стена и вкладка работ |
+| `app/src/main/res/layout/screen_create_job.xml` | Форма добавления места работы |
+| `app/src/main/res/layout/screen_post_detail.xml` и `screen_event_detail.xml` | Подробные экраны поста и события |
 | `app/src/main/java/ru/netology/nework/data/AuthStore.kt` | Локальное состояние входа и токен |
-| `app/src/main/java/ru/netology/nework/ui/MainViewModel.kt` | Загрузка данных и состояния экрана |
-| `app/src/main/java/ru/netology/nework/data/api/NeWorkApi.kt` | Адреса и формат запросов сервера |
-| `app/src/main/java/ru/netology/nework/data/model/Models.kt` | Модели JSON-ответов |
+| `app/src/main/java/ru/netology/nework/ui/AuthViewModel.kt` | Вход, регистрация, текущий пользователь и выход |
+| `app/src/main/java/ru/netology/nework/ui/FeedViewModel.kt` | Посты, события, пользователи, отметки «Нравится» и данные для экранов деталей |
+| `app/src/main/java/ru/netology/nework/ui/PostViewModel.kt` | Создание поста |
+| `app/src/main/java/ru/netology/nework/ui/EventViewModel.kt` | Создание события и состояние его формы |
+| `app/src/main/java/ru/netology/nework/ui/ProfileViewModel.kt` | Профиль, стена, работы и операции с местами работы |
+| `app/src/main/java/ru/netology/nework/ui/FeedState.kt` | Общее состояние списков |
+| `app/src/main/java/ru/netology/nework/data/api/NeWorkApi.kt` | Адреса запросов; интерфейс работает с DTO сервера |
+| `app/src/main/java/ru/netology/nework/data/api/dto/` | DTO и преобразования между ответами API и моделями domain |
+| `app/src/main/java/ru/netology/nework/domain/model/Models.kt` | Модели предметной области |
 | `app/src/main/java/ru/netology/nework/di/NetworkModule.kt` | Retrofit, OkHttp и заголовок ключа |
-| `app/src/main/java/ru/netology/nework/data/NeWorkRepository.kt` | Посредник между экраном и API |
+| `app/src/main/java/ru/netology/nework/domain/repository/NeWorkRepository.kt` и `data/repository/NeWorkRepositoryImpl.kt` | Контракт репозитория и его реализация через API |
 | `app/build.gradle.kts` | Зависимости и настройка ключа/адреса сервера |
 
 ## Что пока не реализовано
 
-- Создание событий, фото/аудио/видео, выбор места и упоминаний.
-- Детальные экраны постов, событий и пользователей, лайки и управление работами.
+- Фото/аудио/видео, выбор места и упоминаний при создании постов и событий.
 
 ## Важно про сервер
 
 В Android-приложении включён HTTP-доступ, потому что адрес учебного сервера использует `http://`. Не размещайте `apikey.properties` в публичном GitHub-репозитории. Для приложения, которое будет опубликовано, ключ, встроенный в клиент, нельзя считать секретным: его можно извлечь из APK.
 
-Модели и маршруты проверяются по Swagger сервера при реализации каждого запроса.
+Создание и удаление места работы отправляются на `my/jobs`, список загружается через `users/{id}/jobs`.

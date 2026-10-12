@@ -10,25 +10,30 @@ import retrofit2.http.Multipart
 import retrofit2.http.Part
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import ru.netology.nework.data.model.Credentials
-import ru.netology.nework.data.model.Event
-import ru.netology.nework.data.model.Job
-import ru.netology.nework.data.model.Post
-import ru.netology.nework.data.model.User
+import ru.netology.nework.data.api.dto.CredentialsDto
+import ru.netology.nework.data.api.dto.EventCreateRequestDto
+import ru.netology.nework.data.api.dto.EventDto
+import ru.netology.nework.data.api.dto.JobCreateRequestDto
+import ru.netology.nework.data.api.dto.JobDto
+import ru.netology.nework.data.api.dto.PostDto
+import ru.netology.nework.data.api.dto.UserDto
 
-/**
- * Пути сверить с OpenAPI сервера до реализации запросов.
- * Базовый URL и обязательный Api-Key задаются в app/build.gradle.kts и NetworkModule.
- */
 interface NeWorkApi {
-    @GET("posts") suspend fun getPosts(): List<Post>
-    @GET("events") suspend fun getEvents(): List<Event>
-    @GET("users") suspend fun getUsers(): List<User>
-    @GET("users/{id}") suspend fun getUser(@Path("id") id: Long): User
-    @GET("users/{id}/wall") suspend fun getWall(@Path("id") id: Long): List<Post>
-    @GET("users/{id}/jobs") suspend fun getJobs(@Path("id") id: Long): List<Job>
+    @GET("posts") suspend fun getPosts(): List<PostDto>
+    @GET("events") suspend fun getEvents(): List<EventDto>
+    @GET("users") suspend fun getUsers(): List<UserDto>
+    @GET("users/{id}") suspend fun getUser(@Path("id") id: Long): UserDto
+    @GET("users/{id}/wall") suspend fun getWall(@Path("id") id: Long): List<PostDto>
+    @GET("users/{id}/jobs") suspend fun getJobs(@Path("id") id: Long): List<JobDto>
+    @POST("my/jobs") suspend fun createJob(@Body body: JobCreateRequestDto): JobDto
+    @DELETE("my/jobs/{id}") suspend fun deleteJob(@Path("id") id: Long): Response<Unit>
 
-    @POST("users/authentication") suspend fun authenticate(@Body body: Credentials): Response<User>
+    @POST("posts/{id}/likes") suspend fun likePost(@Path("id") id: Long): PostDto
+    @DELETE("posts/{id}/likes") suspend fun unlikePost(@Path("id") id: Long): PostDto
+    @POST("events/{id}/likes") suspend fun likeEvent(@Path("id") id: Long): EventDto
+    @DELETE("events/{id}/likes") suspend fun unlikeEvent(@Path("id") id: Long): EventDto
+
+    @POST("users/authentication") suspend fun authenticate(@Body body: CredentialsDto): Response<UserDto>
     @Multipart
     @POST("users/registration")
     suspend fun register(
@@ -36,9 +41,9 @@ interface NeWorkApi {
         @Part("pass") password: RequestBody,
         @Part("name") name: RequestBody,
         @Part file: MultipartBody.Part?,
-    ): Response<User>
-    @POST("posts") suspend fun createPost(@Body body: Post): Post
+    ): Response<UserDto>
+    @POST("posts") suspend fun createPost(@Body body: PostDto): PostDto
     @DELETE("posts/{id}") suspend fun deletePost(@Path("id") id: Long): Response<Unit>
-    @POST("events") suspend fun createEvent(@Body body: Event): Event
+    @POST("events") suspend fun createEvent(@Body body: EventCreateRequestDto): EventDto
     @DELETE("events/{id}") suspend fun deleteEvent(@Path("id") id: Long): Response<Unit>
 }

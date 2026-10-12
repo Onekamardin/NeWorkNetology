@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/feedFragment">
+
+    <fragment
+        android:id="@+id/feedFragment"
+        android:name="ru.netology.nework.ui.fragments.FeedFragment"
+        android:label="@string/posts" />
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="ru.netology.nework.ui.fragments.LoginFragment"
+        android:label="@string/login_title" />
+
+    <fragment
+        android:id="@+id/registerFragment"
+        android:name="ru.netology.nework.ui.fragments.RegisterFragment"
+        android:label="@string/register_title" />
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="ru.netology.nework.ui.fragments.ProfileFragment"
+        android:label="@string/profile">
+        <argument
+            android:name="user_id"
+            android:defaultValue="0L"
+            app:argType="long" />
+        <argument
+            android:name="user_login"
+            android:defaultValue="@null"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="user_name"
+            android:defaultValue="@null"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="user_avatar"
+            android:defaultValue="@null"
+            app:argType="string"
+            app:nullable="true" />
+        <argument
+            android:name="profile_tab"
+            android:defaultValue="0"
+            app:argType="integer" />
+        <argument
+            android:name="reload_profile"
+            android:defaultValue="true"
+            app:argType="boolean" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/postDetailFragment"
+        android:name="ru.netology.nework.ui.fragments.PostDetailFragment"
+        android:label="@string/detail_post_title" />
+
+    <fragment
+        android:id="@+id/eventDetailFragment"
+        android:name="ru.netology.nework.ui.fragments.EventDetailFragment"
+        android:label="@string/detail_event_title" />
+
+    <fragment
+        android:id="@+id/createPostFragment"
+        android:name="ru.netology.nework.ui.fragments.CreatePostFragment"
+        android:label="@string/create_post_title" />
+
+    <fragment
+        android:id="@+id/createEventFragment"
+        android:name="ru.netology.nework.ui.fragments.CreateEventFragment"
+        android:label="@string/create_event_title" />
+
+    <fragment
+        android:id="@+id/createJobFragment"
+        android:name="ru.netology.nework.ui.fragments.CreateJobFragment"
+        android:label="@string/job_create_title" />
+
+    <action
+        android:id="@+id/action_global_feedFragment"
+        app:destination="@id/feedFragment" />
+    <action
+        android:id="@+id/action_global_loginFragment"
+        app:destination="@id/loginFragment" />
+    <action
+        android:id="@+id/action_global_registerFragment"
+        app:destination="@id/registerFragment" />
+    <action
+        android:id="@+id/action_global_profileFragment"
+        app:destination="@id/profileFragment" />
+    <action
+        android:id="@+id/action_global_postDetailFragment"
+        app:destination="@id/postDetailFragment" />
+    <action
+        android:id="@+id/action_global_eventDetailFragment"
+        app:destination="@id/eventDetailFragment" />
+    <action
+        android:id="@+id/action_global_createPostFragment"
+        app:destination="@id/createPostFragment" />
+    <action
+        android:id="@+id/action_global_createEventFragment"
+        app:destination="@id/createEventFragment" />
+    <action
+        android:id="@+id/action_global_createJobFragment"
+        app:destination="@id/createJobFragment" />
+</navigation>

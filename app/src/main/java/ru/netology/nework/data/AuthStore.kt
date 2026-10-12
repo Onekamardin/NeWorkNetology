@@ -4,7 +4,7 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
-import ru.netology.nework.data.model.User
+import ru.netology.nework.domain.model.User
 
 @Singleton
 class AuthStore @Inject constructor(
