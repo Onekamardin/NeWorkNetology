@@ -1,9 +1,14 @@
 package ru.netology.nework
 
 import android.os.Bundle
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.view.View
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
@@ -14,10 +19,14 @@ import androidx.recyclerview.widget.RecyclerView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import ru.netology.nework.databinding.ActivityMainBinding
+import ru.netology.nework.databinding.ScreenLoginBinding
+import ru.netology.nework.databinding.ScreenRegisterBinding
 import ru.netology.nework.data.model.Event
 import ru.netology.nework.data.model.Post
 import ru.netology.nework.data.model.User
 import ru.netology.nework.ui.FeedState
+import ru.netology.nework.ui.AuthOperation
+import ru.netology.nework.ui.AuthState
 import ru.netology.nework.ui.MainViewModel
 import ru.netology.nework.ui.adapter.EventAdapter
 import ru.netology.nework.ui.adapter.PostAdapter
@@ -27,6 +36,14 @@ import ru.netology.nework.ui.adapter.UserAdapter
 class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var binding: ActivityMainBinding
+    private var loginBinding: ScreenLoginBinding? = null
+    private var registerBinding: ScreenRegisterBinding? = null
+    private var selectedAvatarUri: Uri? = null
+    private var authScreenOpen = false
+
+    private val avatarPicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) showSelectedAvatar(uri)
+    }
 
     private val postAdapter = PostAdapter()
     private val eventAdapter = EventAdapter()
@@ -39,8 +56,14 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setSupportActionBar(binding.toolbar)
-        binding.recyclerView.layoutManager = LinearLayoutManager(this)
-        binding.recyclerView.setHasFixedSize(true)
+        binding.feedScreen.recyclerView.layoutManager = LinearLayoutManager(this)
+        binding.feedScreen.recyclerView.setHasFixedSize(true)
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (authScreenOpen) showFeedScreen() else finish()
+            }
+        })
 
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             showTab(item.itemId)
@@ -55,6 +78,7 @@ class MainActivity : AppCompatActivity() {
                 launch { viewModel.posts.collect { render(it, postAdapter, getString(R.string.no_posts)) } }
                 launch { viewModel.events.collect { render(it, eventAdapter, getString(R.string.no_events)) } }
                 launch { viewModel.users.collect { render(it, userAdapter, getString(R.string.no_users)) } }
+                launch { viewModel.auth.collect(::renderAuthState) }
             }
         }
 
@@ -63,24 +87,174 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.app_bar_menu, menu)
+        val authenticated = viewModel.isAuthenticated()
+        menu.findItem(R.id.action_login).isVisible = !authenticated
+        menu.findItem(R.id.action_register).isVisible = !authenticated
+        menu.findItem(R.id.action_profile).isVisible = authenticated
+        menu.findItem(R.id.action_logout).isVisible = authenticated
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
-            R.id.action_login, R.id.action_register -> {
-                showMessage(getString(R.string.auth_screen_coming_soon))
+            R.id.action_login -> {
+                showLoginScreen()
+                true
+            }
+            R.id.action_register -> {
+                showRegisterScreen()
+                true
+            }
+            R.id.action_profile -> {
+                showMessage(getString(R.string.profile_coming_soon))
+                true
+            }
+            R.id.action_logout -> {
+                viewModel.logout()
+                invalidateOptionsMenu()
+                showMessage(getString(R.string.logout_success))
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
     }
 
+    private fun showLoginScreen() {
+        viewModel.clearAuthState()
+        authScreenOpen = true
+        registerBinding = null
+        binding.screenContainer.removeAllViews()
+        val screen = ScreenLoginBinding.inflate(layoutInflater, binding.screenContainer, false)
+        loginBinding = screen
+        binding.screenContainer.addView(screen.root)
+        binding.bottomNavigation.visibility = View.GONE
+        binding.createButton.visibility = View.GONE
+        binding.toolbar.title = getString(R.string.login_title)
+
+        screen.loginSubmit.setOnClickListener {
+            val login = screen.loginInput.text?.toString()?.trim().orEmpty()
+            val password = screen.passwordInput.text?.toString().orEmpty()
+            screen.loginLayout.error = if (login.isBlank()) getString(R.string.error_required) else null
+            screen.passwordLayout.error = if (password.isBlank()) getString(R.string.error_required) else null
+            if (login.isNotBlank() && password.isNotBlank()) viewModel.login(login, password)
+        }
+        screen.openRegister.setOnClickListener { showRegisterScreen() }
+    }
+
+    private fun showRegisterScreen() {
+        viewModel.clearAuthState()
+        authScreenOpen = true
+        loginBinding = null
+        selectedAvatarUri = null
+        binding.screenContainer.removeAllViews()
+        val screen = ScreenRegisterBinding.inflate(layoutInflater, binding.screenContainer, false)
+        registerBinding = screen
+        binding.screenContainer.addView(screen.root)
+        binding.bottomNavigation.visibility = View.GONE
+        binding.createButton.visibility = View.GONE
+        binding.toolbar.title = getString(R.string.register_title)
+
+        screen.selectAvatar.setOnClickListener { avatarPicker.launch("image/*") }
+        screen.registerSubmit.setOnClickListener {
+            val login = screen.loginInput.text?.toString()?.trim().orEmpty()
+            val name = screen.nameInput.text?.toString()?.trim().orEmpty()
+            val password = screen.passwordInput.text?.toString().orEmpty()
+            val repeatedPassword = screen.repeatPasswordInput.text?.toString().orEmpty()
+            screen.loginLayout.error = if (login.isBlank()) getString(R.string.error_required) else null
+            screen.nameLayout.error = if (name.isBlank()) getString(R.string.error_required) else null
+            screen.passwordLayout.error = if (password.isBlank()) getString(R.string.error_required) else null
+            screen.repeatPasswordLayout.error = when {
+                repeatedPassword.isBlank() -> getString(R.string.error_required)
+                repeatedPassword != password -> getString(R.string.error_password_mismatch)
+                else -> null
+            }
+            val valid = login.isNotBlank() && name.isNotBlank() && password.isNotBlank() &&
+                repeatedPassword.isNotBlank() && repeatedPassword == password
+            if (valid) viewModel.register(login, name, password)
+        }
+        screen.openLogin.setOnClickListener { showLoginScreen() }
+    }
+
+    private fun showSelectedAvatar(uri: Uri) {
+        val mimeType = contentResolver.getType(uri)
+        if (mimeType !in setOf("image/jpeg", "image/png")) {
+            showMessage(getString(R.string.error_avatar_type))
+            return
+        }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        val dimensions = runCatching {
+            contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input, null, bounds)
+                bounds.outWidth to bounds.outHeight
+            }
+        }.getOrNull()
+        val width = dimensions?.first ?: 0
+        val height = dimensions?.second ?: 0
+        if (width <= 0 || height <= 0 || width > 2048 || height > 2048) {
+            showMessage(getString(R.string.error_avatar_size))
+            return
+        }
+        selectedAvatarUri = uri
+        registerBinding?.avatarPreview?.setImageURI(uri)
+    }
+
+    private fun renderAuthState(state: AuthState) {
+        when (state) {
+            AuthState.Idle -> Unit
+            is AuthState.Loading -> setAuthLoading(state.operation, true)
+            is AuthState.Success -> {
+                setAuthLoading(state.operation, false)
+                showFeedScreen()
+                invalidateOptionsMenu()
+                showMessage(
+                    getString(if (state.operation == AuthOperation.LOGIN) R.string.login_success else R.string.register_success),
+                )
+                viewModel.clearAuthState()
+            }
+            is AuthState.HttpError -> {
+                setAuthLoading(state.operation, false)
+                val message = when {
+                    state.code == 400 && state.operation == AuthOperation.LOGIN -> getString(R.string.login_bad_credentials)
+                    state.code == 400 && state.operation == AuthOperation.REGISTER -> getString(R.string.register_duplicate_login)
+                    else -> getString(R.string.server_error_code, state.code)
+                }
+                showMessage(message)
+                viewModel.clearAuthState()
+            }
+            is AuthState.NetworkError -> {
+                setAuthLoading(state.operation, false)
+                showMessage(getString(R.string.auth_network_error))
+                viewModel.clearAuthState()
+            }
+        }
+    }
+
+    private fun setAuthLoading(operation: AuthOperation, loading: Boolean) {
+        if (operation == AuthOperation.LOGIN) {
+            loginBinding?.loginProgress?.visibility = if (loading) View.VISIBLE else View.GONE
+            loginBinding?.loginSubmit?.isEnabled = !loading
+        } else {
+            registerBinding?.registerProgress?.visibility = if (loading) View.VISIBLE else View.GONE
+            registerBinding?.registerSubmit?.isEnabled = !loading
+        }
+    }
+
+    private fun showFeedScreen() {
+        authScreenOpen = false
+        loginBinding = null
+        registerBinding = null
+        binding.screenContainer.removeAllViews()
+        binding.screenContainer.addView(binding.feedScreen.root)
+        binding.bottomNavigation.visibility = View.VISIBLE
+        binding.toolbar.title = getString(R.string.app_name)
+        showTab(selectedTab)
+    }
+
     private fun showTab(itemId: Int) {
         selectedTab = itemId
-        binding.messageText.visibility = View.GONE
-        binding.progressBar.visibility = View.GONE
-        binding.recyclerView.adapter = when (itemId) {
+        binding.feedScreen.messageText.visibility = View.GONE
+        binding.feedScreen.progressBar.visibility = View.GONE
+        binding.feedScreen.recyclerView.adapter = when (itemId) {
             R.id.menu_events -> {
                 binding.toolbar.title = getString(R.string.events)
                 binding.createButton.visibility = View.VISIBLE
@@ -110,11 +284,11 @@ class MainActivity : AppCompatActivity() {
         if (selectedTab == R.id.menu_events && adapter !is EventAdapter) return
         if (selectedTab == R.id.menu_users && adapter !is UserAdapter) return
 
-        binding.recyclerView.adapter = adapter
-        binding.progressBar.visibility = if (state.loading && state.items.isEmpty()) View.VISIBLE else View.GONE
+        binding.feedScreen.recyclerView.adapter = adapter
+        binding.feedScreen.progressBar.visibility = if (state.loading && state.items.isEmpty()) View.VISIBLE else View.GONE
         val text = state.error ?: if (state.items.isEmpty() && !state.loading) emptyText else null
-        binding.messageText.text = text
-        binding.messageText.visibility = if (text == null) View.GONE else View.VISIBLE
+        binding.feedScreen.messageText.text = text
+        binding.feedScreen.messageText.visibility = if (text == null) View.GONE else View.VISIBLE
 
         when (adapter) {
             is PostAdapter -> adapter.submitList(state.items.filterIsInstance<Post>())
@@ -124,6 +298,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMessage(text: String) {
-        android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
     }
 }

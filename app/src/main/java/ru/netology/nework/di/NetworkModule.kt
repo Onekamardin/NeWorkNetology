@@ -12,17 +12,19 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import ru.netology.nework.BuildConfig
 import ru.netology.nework.data.api.NeWorkApi
+import ru.netology.nework.data.AuthStore
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
     @Provides @Singleton
-    fun provideApiKeyInterceptor(): Interceptor = Interceptor { chain ->
-        val request = chain.request().newBuilder()
+    fun provideApiKeyInterceptor(authStore: AuthStore): Interceptor = Interceptor { chain ->
+        val requestBuilder = chain.request().newBuilder()
             .header("Api-Key", BuildConfig.API_KEY)
             .header("Accept", "application/json")
-            .build()
+        authStore.token()?.takeIf(String::isNotBlank)?.let { requestBuilder.header("Authorization", it) }
+        val request = requestBuilder.build()
         chain.proceed(request)
     }
 

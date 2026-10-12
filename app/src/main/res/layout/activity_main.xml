@@ -17,34 +17,16 @@
             app:title="@string/app_name" />
 
         <FrameLayout
+            android:id="@+id/screen_container"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recycler_view"
+            <include
+                android:id="@+id/feed_screen"
+                layout="@layout/screen_feed"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:padding="12dp"
-                android:scrollbars="vertical" />
-
-            <ProgressBar
-                android:id="@+id/progress_bar"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/message_text"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:gravity="center"
-                android:padding="24dp"
-                android:textColor="?attr/colorOnSurface"
-                android:visibility="gone" />
+                android:layout_height="match_parent" />
         </FrameLayout>
 
         <com.google.android.material.bottomnavigation.BottomNavigationView

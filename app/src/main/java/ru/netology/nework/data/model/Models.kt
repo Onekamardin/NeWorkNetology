@@ -6,6 +6,7 @@ data class User(
     val name: String = "",
     val avatar: String? = null,
     val online: Boolean = false,
+    val token: String? = null,
 )
 
 data class Post(
