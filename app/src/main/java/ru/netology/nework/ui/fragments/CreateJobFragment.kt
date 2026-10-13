@@ -38,6 +38,7 @@ class CreateJobFragment : Fragment(R.layout.screen_create_job), SaveableScreen {
         finishDate = viewModel.jobFinishMillis()?.let { Calendar.getInstance().apply { timeInMillis = it } }
         if (startDate != null) updateDatesLabel()
         binding.jobDatesButton.setOnClickListener { chooseStartDate() }
+        binding.jobSaveButton.setOnClickListener { save() }
         binding.jobCancelButton.setOnClickListener { findNavController().navigateUp() }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -131,6 +132,7 @@ class CreateJobFragment : Fragment(R.layout.screen_create_job), SaveableScreen {
             }
             JobOperationState.Success -> {
                 uiActions?.showMessage(getString(R.string.job_added))
+                viewModel.refreshJobs()
                 viewModel.clearJobOperationState()
                 findNavController().navigateUp()
             }

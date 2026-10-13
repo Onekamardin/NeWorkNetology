@@ -63,9 +63,25 @@ class EventAdapter(
             )
             binding.content.text = event.content
             binding.authorAvatar.loadServerImage(event.authorAvatar)
-            val imageAttachment = event.attachment?.takeIf { it.type.equals("IMAGE", ignoreCase = true) || it.type.startsWith("image/", ignoreCase = true) }
+            val attachment = event.attachment
+            val imageAttachment = attachment?.takeIf {
+                it.type.equals("IMAGE", ignoreCase = true) || it.type.startsWith("image/", ignoreCase = true)
+            }
             binding.attachmentImage.visibility = if (imageAttachment == null) View.GONE else View.VISIBLE
-            if (imageAttachment != null) binding.attachmentImage.loadServerImage(imageAttachment.url)
+            binding.attachmentImage.loadServerImage(imageAttachment?.url)
+            val mediaAttachment = attachment?.takeIf { it != imageAttachment }
+            binding.attachmentOpen.visibility = if (mediaAttachment == null) View.GONE else View.VISIBLE
+            binding.attachmentOpen.text = mediaAttachment?.let {
+                val labelId = if (it.type.equals("VIDEO", ignoreCase = true) || it.type.startsWith("video/", ignoreCase = true)) {
+                    R.string.attachment_open_video
+                } else {
+                    R.string.attachment_open_audio
+                }
+                itemView.context.getString(labelId)
+            }.orEmpty()
+            binding.attachmentOpen.setOnClickListener {
+                mediaAttachment?.let { openLink(itemView.context, it.url) }
+            }
             binding.link.text = event.link
             binding.link.visibility = if (event.link.isNullOrBlank()) android.view.View.GONE else android.view.View.VISIBLE
             binding.link.setOnClickListener { event.link?.let { openLink(itemView.context, it) } }

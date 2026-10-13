@@ -47,6 +47,10 @@ class FeedViewModel @Inject constructor(
     val likeErrors: SharedFlow<String> = _likeErrors.asSharedFlow()
     private val _messages = MutableSharedFlow<FeedActionResult>()
     val messages: SharedFlow<FeedActionResult> = _messages.asSharedFlow()
+    private val _participationLoading = MutableStateFlow<Long?>(null)
+    val participationLoading: StateFlow<Long?> = _participationLoading.asStateFlow()
+    private val _participationMessages = MutableSharedFlow<String>()
+    val participationMessages: SharedFlow<String> = _participationMessages.asSharedFlow()
 
     fun selectPost(post: Post) { _selectedPost.value = post; _selectedEvent.value = null }
     fun selectEvent(event: Event) { _selectedEvent.value = event; _selectedPost.value = null }
@@ -86,6 +90,36 @@ class FeedViewModel @Inject constructor(
                 _events.value = _events.value.copy(items = _events.value.items.map { if (it.id == updated.id) updated else it })
             }
             .onFailure { _likeErrors.emit(it.message ?: "Не удалось изменить отметку «Нравится»") }
+    }
+
+    fun toggleEventParticipation(event: Event, userId: Long) = viewModelScope.launch {
+        if (_participationLoading.value == event.id) return@launch
+        if (userId <= 0) {
+            _participationMessages.emit("Не удалось определить пользователя. Войдите в аккаунт ещё раз.")
+            return@launch
+        }
+        val wasParticipant = userId in event.participantsIds
+        _participationLoading.value = event.id
+        runCatching {
+            if (wasParticipant) feedUseCase.leaveEvent(event.id) else feedUseCase.participateEvent(event.id)
+        }.onSuccess {
+            val participants = if (wasParticipant) {
+                event.participantsIds - userId
+            } else {
+                (event.participantsIds + userId).distinct()
+            }
+            val updated = event.copy(participantsIds = participants)
+            _events.value = _events.value.copy(
+                items = _events.value.items.map { if (it.id == updated.id) updated else it },
+            )
+            if (_selectedEvent.value?.id == updated.id) _selectedEvent.value = updated
+            _participationMessages.emit(
+                if (wasParticipant) "Вы больше не участвуете в событии" else "Вы записались на событие",
+            )
+        }.onFailure {
+            _participationMessages.emit(it.message ?: "Не удалось изменить участие в событии")
+        }
+        _participationLoading.value = null
     }
 
     fun deletePost(post: Post) = viewModelScope.launch {

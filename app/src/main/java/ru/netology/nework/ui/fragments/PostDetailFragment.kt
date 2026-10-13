@@ -53,11 +53,25 @@ class PostDetailFragment : Fragment(R.layout.screen_post_detail) {
         binding.detailAuthor.text = post.author ?: getString(R.string.user_fallback)
         binding.detailDate.text = formatServerDate(post.published)
         binding.detailContent.text = post.content
-        val image = post.attachment?.takeIf {
+        val attachment = post.attachment
+        val image = attachment?.takeIf {
             it.type.equals("IMAGE", ignoreCase = true) || it.type.startsWith("image/", ignoreCase = true)
         }
         binding.detailAttachmentImage.visibility = if (image == null) View.GONE else View.VISIBLE
         binding.detailAttachmentImage.loadServerImage(image?.url)
+        val mediaAttachment = attachment?.takeIf { it != image }
+        binding.detailAttachmentOpen.visibility = if (mediaAttachment == null) View.GONE else View.VISIBLE
+        binding.detailAttachmentOpen.text = mediaAttachment?.let {
+            val labelId = if (it.type.equals("VIDEO", ignoreCase = true) || it.type.startsWith("video/", ignoreCase = true)) {
+                R.string.attachment_open_video
+            } else {
+                R.string.attachment_open_audio
+            }
+            getString(labelId)
+        }.orEmpty()
+        binding.detailAttachmentOpen.setOnClickListener {
+            mediaAttachment?.let { openLink(requireContext(), it.url) }
+        }
         binding.detailLink.text = post.link
         binding.detailLink.visibility = if (post.link.isNullOrBlank()) View.GONE else View.VISIBLE
         binding.detailLink.setOnClickListener { post.link?.let { openLink(requireContext(), it) } }

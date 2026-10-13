@@ -27,6 +27,8 @@ interface NeWorkRepository {
     suspend fun likeEvent(id: Long): Event
     suspend fun unlikeEvent(id: Long): Event
     suspend fun deletePost(id: Long)
+    suspend fun participateEvent(id: Long)
+    suspend fun leaveEvent(id: Long)
     suspend fun deleteEvent(id: Long)
     suspend fun uploadMedia(file: MediaFile): Attachment
     suspend fun createPost(content: String, link: String? = null, mentionIds: List<Long> = emptyList(), coords: Coordinates? = null, attachment: Attachment? = null): Post

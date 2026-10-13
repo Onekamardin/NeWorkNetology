@@ -16,4 +16,6 @@ class FeedUseCase @Inject constructor(private val repository: NeWorkRepository) 
     suspend fun unlikeEvent(id: Long): Event = repository.unlikeEvent(id)
     suspend fun deletePost(id: Long) = repository.deletePost(id)
     suspend fun deleteEvent(id: Long) = repository.deleteEvent(id)
+    suspend fun participateEvent(id: Long) = repository.participateEvent(id)
+    suspend fun leaveEvent(id: Long) = repository.leaveEvent(id)
 }

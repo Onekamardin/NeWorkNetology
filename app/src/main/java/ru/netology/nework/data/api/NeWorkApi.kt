@@ -51,4 +51,6 @@ interface NeWorkApi {
     @DELETE("posts/{id}") suspend fun deletePost(@Path("id") id: Long): Response<Unit>
     @POST("events") suspend fun createEvent(@Body body: EventCreateRequestDto): EventDto
     @DELETE("events/{id}") suspend fun deleteEvent(@Path("id") id: Long): Response<Unit>
+    @POST("events/{id}/participants") suspend fun participateEvent(@Path("id") id: Long): Response<Unit>
+    @DELETE("events/{id}/participants") suspend fun leaveEvent(@Path("id") id: Long): Response<Unit>
 }

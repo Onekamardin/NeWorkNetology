@@ -69,6 +69,8 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
         super.onViewCreated(view, savedInstanceState)
         _binding = ScreenCreatePostBinding.bind(view)
         uiActions?.setScreenTitle(getString(R.string.create_post_title))
+        updateLocationButton()
+        updateMentionsButton()
         binding.cancelButton.setOnClickListener { findNavController().navigateUp() }
         binding.mentionsButton.setOnClickListener { chooseMentionUsers() }
         binding.postLocationButton.setOnClickListener { openLocationPicker() }
@@ -143,11 +145,7 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
         val mediaFile = selectedMedia
         screen.attachmentName.visibility = if (mediaFile == null && !mediaLoading) View.GONE else View.VISIBLE
         screen.attachmentRemoveButton.visibility = if (mediaFile == null) View.GONE else View.VISIBLE
-        screen.attachmentPreview.visibility = if (mediaFile?.mimeType?.startsWith("image/") == true) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
+        screen.attachmentPreview.visibility = if (mediaFile?.mimeType?.startsWith("image/") == true) View.VISIBLE else View.GONE
         screen.attachmentName.text = when {
             mediaLoading -> getString(R.string.attachment_loading)
             mediaFile != null -> getString(R.string.attachment_selected, mediaFile.fileName)
@@ -260,6 +258,7 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
             }
             CreatePostState.Success -> {
                 uiActions?.showMessage(getString(R.string.post_created))
+                feedViewModel.loadPosts()
                 clearAttachment()
                 viewModel.clearCreatePostState()
                 findNavController().navigateUp()

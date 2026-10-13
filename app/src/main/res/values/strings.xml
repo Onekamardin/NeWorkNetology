@@ -26,7 +26,6 @@
     <string name="register_duplicate_login">Пользователь с таким логином уже зарегистрирован</string>
     <string name="register_photo_format_error">Сервер отклонил фото. Выберите изображение JPEG или PNG.</string>
     <string name="register_photo_read_error">Не удалось прочитать выбранное фото. Выберите его ещё раз.</string>
-    <string name="auth_network_error">Не удалось связаться с сервером</string>
     <string name="auth_network_error_details">Не удалось связаться с сервером или обработать его ответ. Подробности: %1$s</string>
     <string name="login_success">Вход выполнен</string>
     <string name="register_success">Аккаунт создан</string>
@@ -77,7 +76,6 @@
     <string name="event_speakers_selected">Выбрано спикеров: %1$d</string>
     <string name="event_date_format">Состоится: %1$s</string>
     <string name="event_created">Событие создано</string>
-    <string name="event_create_failed">Не удалось создать событие</string>
     <string name="auth_required_to_create">Чтобы создать пост, войдите или зарегистрируйтесь</string>
     <string name="create_post_title">Новый пост</string>
     <string name="post_content_hint">Текст поста</string>
@@ -88,7 +86,6 @@
     <string name="location_picker_select">Выбрать это место</string>
     <string name="location_selected">Место выбрано: %1$s, %2$s</string>
     <string name="location_choose">Выбрать место на карте</string>
-    <string name="location_not_selected">Место не выбрано</string>
     <string name="post_choose_mentions">Упомянуть пользователей</string>
     <string name="post_mentions_selected">Выбрано пользователей: %1$d</string>
     <string name="post_mentions_loading">Загружаем пользователей. Попробуйте ещё раз через несколько секунд.</string>
@@ -106,6 +103,10 @@
     <string name="detail_mentions_title">Упомянутые пользователи</string>
     <string name="detail_author_job_title">Последнее место работы автора</string>
     <string name="detail_open_map">Открыть место на карте</string>
+    <string name="event_join">Принять участие</string>
+    <string name="event_leave">Отменить участие</string>
+    <string name="event_join_loading">Сохраняем…</string>
+    <string name="event_join_login">Войдите, чтобы участвовать</string>
     <string name="detail_participants_title">Участники</string>
     <string name="detail_speakers_title">Спикеры</string>
     <string name="detail_no_people">Список пуст</string>
@@ -113,7 +114,6 @@
     <string name="detail_job_loading">Загружаем информацию о работе…</string>
     <string name="detail_job_load_error">Не удалось загрузить информацию о работе</string>
     <string name="detail_user_fallback">Пользователь %1$d</string>
-    <string name="detail_map_unavailable">Не удалось открыть карту</string>
     <string name="detail_post_title">Пост</string>
     <string name="detail_event_title">Событие</string>
     <string name="event_date_line">%1$s · %2$s</string>
@@ -133,4 +133,6 @@
     <string name="attachment_type_error">Выберите изображение, аудио или видео</string>
     <string name="attachment_read_error">Не удалось прочитать файл</string>
     <string name="attachment_camera_error">Не удалось открыть камеру</string>
+    <string name="attachment_open_video">Открыть видео</string>
+    <string name="attachment_open_audio">Открыть аудио</string>
 </resources>

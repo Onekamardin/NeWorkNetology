@@ -2,6 +2,7 @@ package ru.netology.nework.ui.fragments
 
 import ru.netology.nework.ui.common.AppUiActions
 import ru.netology.nework.ui.viewmodel.FeedViewModel
+import ru.netology.nework.ui.viewmodel.AuthViewModel
 import ru.netology.nework.ui.utils.openLink
 import ru.netology.nework.ui.utils.formatServerDate
 import ru.netology.nework.ui.utils.loadServerImage
@@ -25,6 +26,8 @@ import ru.netology.nework.databinding.ScreenEventDetailBinding
 
 class EventDetailFragment : Fragment(R.layout.screen_event_detail) {
     private val viewModel: FeedViewModel by activityViewModels()
+    private val authViewModel: AuthViewModel by activityViewModels()
+    private val uiActions get() = activity as? AppUiActions
     private var _binding: ScreenEventDetailBinding? = null
     private val binding get() = _binding!!
 
@@ -36,6 +39,14 @@ class EventDetailFragment : Fragment(R.layout.screen_event_detail) {
         if (event == null) return
 
         showEvent(event)
+        binding.participationButton.setOnClickListener {
+            val user = authViewModel.currentUser()
+            if (user == null) {
+                uiActions?.showAuthRequired(getString(R.string.event_join_login))
+            } else {
+                viewModel.toggleEventParticipation(viewModel.selectedEvent.value ?: event, user.id)
+            }
+        }
         viewModel.loadDetailJobs(event.authorId)
         if ((event.speakerIds.isNotEmpty() || event.participantsIds.isNotEmpty()) &&
             viewModel.users.value.items.isEmpty()
@@ -45,8 +56,24 @@ class EventDetailFragment : Fragment(R.layout.screen_event_detail) {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch { viewModel.users.collect { showPeople(event) } }
+                launch { viewModel.users.collect { showPeople(viewModel.selectedEvent.value ?: event) } }
                 launch { viewModel.detailJobs.collect { showAuthorJob() } }
+                launch {
+                    viewModel.selectedEvent.collect { updated ->
+                        if (updated?.id == event.id) {
+                            binding.detailParticipants.text = peopleNames(updated.participantsIds)
+                            showParticipation(updated)
+                        }
+                    }
+                }
+                launch {
+                    viewModel.participationLoading.collect {
+                        showParticipation(viewModel.selectedEvent.value ?: event)
+                    }
+                }
+                launch {
+                    viewModel.participationMessages.collect { uiActions?.showMessage(it) }
+                }
             }
         }
     }
@@ -64,17 +91,45 @@ class EventDetailFragment : Fragment(R.layout.screen_event_detail) {
             formatServerDate(event.datetime),
         )
         binding.detailContent.text = event.content
-        val image = event.attachment?.takeIf {
+        val attachment = event.attachment
+        val image = attachment?.takeIf {
             it.type.equals("IMAGE", ignoreCase = true) || it.type.startsWith("image/", ignoreCase = true)
         }
         binding.detailAttachmentImage.visibility = if (image == null) View.GONE else View.VISIBLE
         binding.detailAttachmentImage.loadServerImage(image?.url)
+        val mediaAttachment = attachment?.takeIf { it != image }
+        binding.detailAttachmentOpen.visibility = if (mediaAttachment == null) View.GONE else View.VISIBLE
+        binding.detailAttachmentOpen.text = mediaAttachment?.let {
+            val labelId = if (it.type.equals("VIDEO", ignoreCase = true) || it.type.startsWith("video/", ignoreCase = true)) {
+                R.string.attachment_open_video
+            } else {
+                R.string.attachment_open_audio
+            }
+            getString(labelId)
+        }.orEmpty()
+        binding.detailAttachmentOpen.setOnClickListener {
+            mediaAttachment?.let { openLink(requireContext(), it.url) }
+        }
         binding.detailLink.text = event.link
         binding.detailLink.visibility = if (event.link.isNullOrBlank()) View.GONE else View.VISIBLE
         binding.detailLink.setOnClickListener { event.link?.let { openLink(requireContext(), it) } }
         binding.detailParticipants.text = peopleNames(event.participantsIds)
         binding.detailSpeakers.text = peopleNames(event.speakerIds)
+        showParticipation(event)
         showMapButton(binding.detailMapButton, event.coords)
+    }
+
+    private fun showParticipation(event: Event) {
+        val button = _binding?.participationButton ?: return
+        val userId = authViewModel.currentUser()?.id
+        val isLoading = viewModel.participationLoading.value == event.id
+        button.isEnabled = !isLoading
+        button.text = when {
+            isLoading -> getString(R.string.event_join_loading)
+            userId == null -> getString(R.string.event_join_login)
+            userId in event.participantsIds -> getString(R.string.event_leave)
+            else -> getString(R.string.event_join)
+        }
     }
 
     private fun showPeople(event: Event) {

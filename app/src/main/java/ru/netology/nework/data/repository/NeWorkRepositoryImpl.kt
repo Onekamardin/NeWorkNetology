@@ -55,6 +55,12 @@ class NeWorkRepositoryImpl @Inject constructor(
     override suspend fun deleteEvent(id: Long) {
         checkResponse(safeRequest { api.deleteEvent(id) })
     }
+    override suspend fun participateEvent(id: Long) {
+        checkResponse(safeRequest { api.participateEvent(id) })
+    }
+    override suspend fun leaveEvent(id: Long) {
+        checkResponse(safeRequest { api.leaveEvent(id) })
+    }
     override suspend fun uploadMedia(file: MediaFile): Attachment {
         val body = file.bytes.toRequestBody(file.mimeType.toMediaType())
         val part = MultipartBody.Part.createFormData("file", file.fileName, body)

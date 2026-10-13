@@ -20,8 +20,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.coroutines.launch
 import ru.netology.nework.R
-import ru.netology.nework.domain.model.Job
-import ru.netology.nework.domain.model.Post
 import ru.netology.nework.domain.model.User
 import ru.netology.nework.databinding.ScreenProfileBinding
 import ru.netology.nework.ui.adapter.JobAdapter
@@ -78,6 +76,7 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
             if (!authViewModel.isAuthenticated()) {
                 uiActions?.showAuthRequired()
             } else {
+                arguments?.putInt(ARG_TAB, selectedTab)
                 viewModel.resetJobDraft()
                 findNavController().navigate(R.id.action_global_createJobFragment)
             }

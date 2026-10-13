@@ -73,8 +73,8 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = ScreenCreateEventBinding.bind(view)
-        uiActions?.setScreenTitle(getString(R.string.create_event_title))
         eventDate = Calendar.getInstance().apply { timeInMillis = viewModel.eventDateMillis.value }
+        uiActions?.setScreenTitle(getString(R.string.create_event_title))
         feedViewModel.loadUsers()
         updateDateLabel()
         binding.eventDateButton.setOnClickListener { chooseDate() }
@@ -82,6 +82,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         observeLocationResult()
         updateLocationButton()
         binding.eventSpeakersButton.setOnClickListener { chooseSpeakers(feedViewModel.users.value.items) }
+        updateSpeakersSummary()
         binding.eventCancelButton.setOnClickListener { findNavController().navigateUp() }
         binding.attachmentGalleryButton.setOnClickListener { galleryLauncher.launch("image/*") }
         binding.attachmentCameraButton.setOnClickListener { openCamera() }
@@ -151,11 +152,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         val mediaFile = selectedMedia
         screen.attachmentName.visibility = if (mediaFile == null && !mediaLoading) View.GONE else View.VISIBLE
         screen.attachmentRemoveButton.visibility = if (mediaFile == null) View.GONE else View.VISIBLE
-        screen.attachmentPreview.visibility = if (mediaFile?.mimeType?.startsWith("image/") == true) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
+        screen.attachmentPreview.visibility = if (mediaFile?.mimeType?.startsWith("image/") == true) View.VISIBLE else View.GONE
         screen.attachmentName.text = when {
             mediaLoading -> getString(R.string.attachment_loading)
             mediaFile != null -> getString(R.string.attachment_selected, mediaFile.fileName)
@@ -205,6 +202,13 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         binding.eventDateButton.text = getString(R.string.event_date_format, text)
     }
 
+    private fun updateSpeakersSummary() {
+        val count = viewModel.selectedSpeakerIds.value.size
+        binding.eventSpeakersSummary.text = if (count == 0) {
+            getString(R.string.event_speakers_none)
+        } else getString(R.string.event_speakers_selected, count)
+    }
+
     private fun chooseSpeakers(users: List<User>) {
         if (users.isEmpty()) {
             uiActions?.showMessage(getString(R.string.event_speakers_loading))
@@ -222,12 +226,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
             .setMultiChoiceItems(names, checked) { _, index, isChecked ->
                 viewModel.setSpeakerSelected(users[index].id, isChecked)
             }
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                val count = viewModel.selectedSpeakerIds.value.size
-                binding.eventSpeakersSummary.text = if (count == 0) {
-                    getString(R.string.event_speakers_none)
-                } else getString(R.string.event_speakers_selected, count)
-            }
+            .setPositiveButton(android.R.string.ok) { _, _ -> updateSpeakersSummary() }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
@@ -293,6 +292,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
             }
             CreateEventState.Success -> {
                 uiActions?.showMessage(getString(R.string.event_created))
+                feedViewModel.loadEvents()
                 clearAttachment()
                 viewModel.clearCreateEventState()
                 findNavController().navigateUp()

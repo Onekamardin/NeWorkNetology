@@ -94,11 +94,43 @@ class ProfileViewModel @Inject constructor(
                 )
                 val currentJobs = _profile.value.jobs
                 _profile.value = _profile.value.copy(
-                    jobs = currentJobs.copy(items = currentJobs.items + jobToShow, error = null),
+                    jobs = currentJobs.copy(
+                        items = (currentJobs.items.filterNot { it.id == jobToShow.id } + jobToShow),
+                        error = null,
+                    ),
                 )
                 _jobOperation.value = JobOperationState.Success
             }
             .onFailure { _jobOperation.value = JobOperationState.Error(it.message ?: "Не удалось добавить работу") }
+    }
+
+    fun refreshJobs() = viewModelScope.launch {
+        val user = _profile.value.user ?: return@launch
+        val currentJobs = _profile.value.jobs
+        _profile.value = _profile.value.copy(
+            jobs = currentJobs.copy(loading = true, error = null),
+        )
+
+        runCatching { profileUseCase.jobs(user.id) }
+            .onSuccess { jobs ->
+                val latestJobs = _profile.value.jobs.items
+                val visibleJobs = (jobs + latestJobs).distinctBy { it.id }
+                _profile.value = _profile.value.copy(jobs = FeedState(items = visibleJobs))
+            }
+            .onFailure { error ->
+                val missing = error is NetworkException && error.code == 404
+                val latestJobs = _profile.value.jobs
+                _profile.value = _profile.value.copy(
+                    jobs = if (missing) {
+                        FeedState(items = latestJobs.items)
+                    } else {
+                        FeedState(
+                            items = latestJobs.items,
+                            error = "Не удалось обновить список мест работы. Попробуйте позже.",
+                        )
+                    },
+                )
+            }
     }
 
     fun deleteJob(id: Long) = viewModelScope.launch {
@@ -130,7 +162,15 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun loadProfile(user: User) = viewModelScope.launch {
-        _profile.value = ProfileState(user = user)
+        val existingJobs = _profile.value
+            .takeIf { it.user?.id == user.id }
+            ?.jobs
+            ?.items
+            .orEmpty()
+        _profile.value = ProfileState(
+            user = user,
+            jobs = FeedState(items = existingJobs, loading = true),
+        )
         launch {
             runCatching { profileUseCase.user(user.id) }
                 .onSuccess { loaded -> _profile.value = _profile.value.copy(user = loaded) }
@@ -147,13 +187,27 @@ class ProfileViewModel @Inject constructor(
                 }
         }
         launch {
-            _profile.value = _profile.value.copy(jobs = FeedState(loading = true))
+            _profile.value = _profile.value.copy(
+                jobs = _profile.value.jobs.copy(loading = true, error = null),
+            )
             runCatching { profileUseCase.jobs(user.id) }
-                .onSuccess { _profile.value = _profile.value.copy(jobs = FeedState(items = it)) }
+                .onSuccess {
+                    val currentJobs = _profile.value.jobs.items
+                    val visibleJobs = (it + currentJobs).distinctBy { job -> job.id }
+                    _profile.value = _profile.value.copy(jobs = FeedState(items = visibleJobs))
+                }
                 .onFailure { error ->
                     val missing = error is NetworkException && error.code == 404
+                    val currentJobs = _profile.value.jobs.items
                     _profile.value = _profile.value.copy(
-                        jobs = if (missing) FeedState() else FeedState(error = "Не удалось загрузить места работы. Попробуйте позже."),
+                        jobs = if (missing) {
+                            FeedState(items = currentJobs)
+                        } else {
+                            FeedState(
+                                items = currentJobs,
+                                error = "Не удалось загрузить места работы. Попробуйте позже.",
+                            )
+                        },
                     )
                 }
         }
