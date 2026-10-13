@@ -10,8 +10,9 @@ import android.widget.PopupMenu
 import ru.netology.nework.domain.model.Post
 import ru.netology.nework.databinding.ItemPostBinding
 import ru.netology.nework.R
-import ru.netology.nework.ui.formatServerDate
-import ru.netology.nework.ui.openLink
+import ru.netology.nework.ui.utils.formatServerDate
+import ru.netology.nework.ui.utils.openLink
+import ru.netology.nework.ui.utils.loadServerImage
 
 class PostAdapter(
     private val onLike: (Post) -> Unit,
@@ -48,6 +49,10 @@ class PostAdapter(
                 ?: itemView.context.getString(R.string.user_fallback)
             binding.date.text = formatServerDate(post.published)
             binding.content.text = post.content
+            binding.authorAvatar.loadServerImage(post.authorAvatar)
+            val imageAttachment = post.attachment?.takeIf { it.type.equals("IMAGE", ignoreCase = true) || it.type.startsWith("image/", ignoreCase = true) }
+            binding.attachmentImage.visibility = if (imageAttachment == null) View.GONE else View.VISIBLE
+            if (imageAttachment != null) binding.attachmentImage.loadServerImage(imageAttachment.url)
             binding.link.text = post.link
             binding.link.visibility = if (post.link.isNullOrBlank()) android.view.View.GONE else android.view.View.VISIBLE
             binding.link.setOnClickListener { post.link?.let { openLink(itemView.context, it) } }

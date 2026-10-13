@@ -73,6 +73,20 @@
         android:label="@string/create_event_title" />
 
     <fragment
+        android:id="@+id/locationPickerFragment"
+        android:name="ru.netology.nework.ui.fragments.LocationPickerFragment"
+        android:label="@string/location_picker_title">
+        <argument
+            android:name="initial_coordinates"
+            android:defaultValue=""
+            app:argType="string" />
+        <argument
+            android:name="read_only"
+            android:defaultValue="false"
+            app:argType="boolean" />
+    </fragment>
+
+    <fragment
         android:id="@+id/createJobFragment"
         android:name="ru.netology.nework.ui.fragments.CreateJobFragment"
         android:label="@string/job_create_title" />
@@ -101,6 +115,9 @@
     <action
         android:id="@+id/action_global_createEventFragment"
         app:destination="@id/createEventFragment" />
+    <action
+        android:id="@+id/action_global_locationPickerFragment"
+        app:destination="@id/locationPickerFragment" />
     <action
         android:id="@+id/action_global_createJobFragment"
         app:destination="@id/createJobFragment" />

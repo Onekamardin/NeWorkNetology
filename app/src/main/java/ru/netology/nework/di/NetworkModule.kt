@@ -12,7 +12,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import ru.netology.nework.BuildConfig
 import ru.netology.nework.data.api.NeWorkApi
-import ru.netology.nework.data.AuthStore
+import ru.netology.nework.data.local.AuthStore
 import javax.inject.Singleton
 
 @Module

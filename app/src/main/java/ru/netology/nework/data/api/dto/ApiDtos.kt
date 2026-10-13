@@ -52,6 +52,7 @@ data class JobDto(
 )
 
 data class AttachmentDto(val url: String, val type: String)
+data class MediaUploadDto(val url: String)
 data class CoordinatesDto(val latitude: Double, val longitude: Double)
 data class CredentialsDto(val login: String, val password: String)
 

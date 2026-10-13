@@ -73,3 +73,10 @@ data class JobCreateRequest(
 
 data class Credentials(val login: String, val password: String)
 
+
+
+data class MediaFile(
+    val fileName: String,
+    val mimeType: String,
+    val bytes: ByteArray,
+)

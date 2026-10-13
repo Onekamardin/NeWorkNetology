@@ -15,6 +15,7 @@ import ru.netology.nework.data.api.dto.EventCreateRequestDto
 import ru.netology.nework.data.api.dto.EventDto
 import ru.netology.nework.data.api.dto.JobCreateRequestDto
 import ru.netology.nework.data.api.dto.JobDto
+import ru.netology.nework.data.api.dto.MediaUploadDto
 import ru.netology.nework.data.api.dto.PostDto
 import ru.netology.nework.data.api.dto.UserDto
 
@@ -42,6 +43,10 @@ interface NeWorkApi {
         @Part("name") name: RequestBody,
         @Part file: MultipartBody.Part?,
     ): Response<UserDto>
+    @Multipart
+    @POST("media")
+    suspend fun uploadMedia(@Part file: MultipartBody.Part): MediaUploadDto
+
     @POST("posts") suspend fun createPost(@Body body: PostDto): PostDto
     @DELETE("posts/{id}") suspend fun deletePost(@Path("id") id: Long): Response<Unit>
     @POST("events") suspend fun createEvent(@Body body: EventCreateRequestDto): EventDto

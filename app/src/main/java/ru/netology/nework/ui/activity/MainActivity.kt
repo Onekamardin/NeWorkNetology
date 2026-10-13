@@ -1,4 +1,4 @@
-package ru.netology.nework.ui
+package ru.netology.nework.ui.activity
 
 import android.os.Bundle
 import android.view.Menu
@@ -16,12 +16,17 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import dagger.hilt.android.AndroidEntryPoint
 import ru.netology.nework.R
+import ru.netology.nework.ui.common.AppUiActions
+import ru.netology.nework.ui.common.SaveableScreen
 import ru.netology.nework.domain.model.Job
 import ru.netology.nework.domain.model.Post
 import ru.netology.nework.domain.model.Event
 import ru.netology.nework.databinding.ActivityMainBinding
 import ru.netology.nework.ui.fragments.FeedFragment
 import ru.netology.nework.ui.fragments.ProfileFragment
+import ru.netology.nework.ui.viewmodel.AuthViewModel
+import ru.netology.nework.ui.viewmodel.FeedViewModel
+import ru.netology.nework.ui.viewmodel.ProfileViewModel
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity(), AppUiActions {

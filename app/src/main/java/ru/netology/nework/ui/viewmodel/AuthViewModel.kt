@@ -1,4 +1,4 @@
-package ru.netology.nework.ui
+package ru.netology.nework.ui.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel

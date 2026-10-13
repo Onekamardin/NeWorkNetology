@@ -16,6 +16,8 @@
     <string name="select_avatar">Выбрать фото</string>
     <string name="avatar_preview">Предварительный просмотр аватара</string>
     <string name="user_avatar">Аватар пользователя</string>
+    <string name="post_attachment_image">Изображение в посте</string>
+    <string name="event_attachment_image">Изображение события</string>
     <string name="error_required">Заполните это поле</string>
     <string name="error_password_mismatch">Пароли не совпадают</string>
     <string name="error_avatar_type">Выберите изображение JPEG или PNG</string>
@@ -81,7 +83,15 @@
     <string name="post_content_hint">Текст поста</string>
     <string name="link_hint">Ссылка (необязательно)</string>
     <string name="link_open_error">Не удалось открыть ссылку</string>
-    <string name="post_features_next_steps">Добавление фото, видео, аудио, места и упоминаний будет подключено отдельными шагами.</string>
+    <string name="location_picker_title">Выбор места</string>
+    <string name="location_picker_hint">Нажмите на карте, чтобы поставить метку</string>
+    <string name="location_picker_select">Выбрать это место</string>
+    <string name="location_selected">Место выбрано: %1$s, %2$s</string>
+    <string name="location_choose">Выбрать место на карте</string>
+    <string name="location_not_selected">Место не выбрано</string>
+    <string name="post_choose_mentions">Упомянуть пользователей</string>
+    <string name="post_mentions_selected">Выбрано пользователей: %1$d</string>
+    <string name="post_mentions_loading">Загружаем пользователей. Попробуйте ещё раз через несколько секунд.</string>
     <string name="post_created">Пост опубликован</string>
     <string name="save">Сохранить</string>
     <string name="cancel">Отмена</string>
@@ -107,4 +117,20 @@
     <string name="detail_post_title">Пост</string>
     <string name="detail_event_title">Событие</string>
     <string name="event_date_line">%1$s · %2$s</string>
+    <string name="event_published_line">Опубликовано: %1$s</string>
+    <string name="detail_post_attachment_image">Изображение поста</string>
+    <string name="detail_event_attachment_image">Изображение события</string>
+    <string name="detail_map_title">Место публикации</string>
+    <string name="attachment_gallery">Выбрать фото из галереи</string>
+    <string name="attachment_camera">Сделать фото</string>
+    <string name="attachment_audio_video">Выбрать аудио или видео</string>
+    <string name="attachment_none">Вложение не выбрано</string>
+    <string name="attachment_selected">Вложение: %1$s</string>
+    <string name="attachment_loading">Читаем вложение…</string>
+    <string name="attachment_preview">Предпросмотр вложения</string>
+    <string name="attachment_remove">Убрать вложение</string>
+    <string name="attachment_too_large">Размер вложения должен быть не больше 15 МБ</string>
+    <string name="attachment_type_error">Выберите изображение, аудио или видео</string>
+    <string name="attachment_read_error">Не удалось прочитать файл</string>
+    <string name="attachment_camera_error">Не удалось открыть камеру</string>
 </resources>

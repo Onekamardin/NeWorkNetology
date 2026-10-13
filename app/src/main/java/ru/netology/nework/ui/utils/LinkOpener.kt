@@ -1,4 +1,4 @@
-package ru.netology.nework.ui
+package ru.netology.nework.ui.utils
 
 import android.content.ActivityNotFoundException
 import android.content.Context

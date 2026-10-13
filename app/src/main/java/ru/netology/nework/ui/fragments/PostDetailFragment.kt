@@ -1,16 +1,16 @@
 package ru.netology.nework.ui.fragments
 
-import ru.netology.nework.ui.AppUiActions
-import ru.netology.nework.ui.FeedViewModel
-import ru.netology.nework.ui.openLink
+import ru.netology.nework.ui.common.AppUiActions
+import ru.netology.nework.ui.viewmodel.FeedViewModel
+import ru.netology.nework.ui.utils.openLink
+import ru.netology.nework.ui.utils.formatServerDate
+import ru.netology.nework.ui.utils.loadServerImage
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.core.os.bundleOf
+import androidx.navigation.fragment.findNavController
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -18,9 +18,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import ru.netology.nework.R
 import ru.netology.nework.domain.model.Coordinates
+import ru.netology.nework.ui.fragments.LocationPickerFragment.Companion.ARG_INITIAL_COORDINATES
+import ru.netology.nework.ui.fragments.LocationPickerFragment.Companion.ARG_READ_ONLY
 import ru.netology.nework.domain.model.Post
 import ru.netology.nework.databinding.ScreenPostDetailBinding
-import ru.netology.nework.ui.formatServerDate
 
 class PostDetailFragment : Fragment(R.layout.screen_post_detail) {
     private val viewModel: FeedViewModel by activityViewModels()
@@ -52,6 +53,11 @@ class PostDetailFragment : Fragment(R.layout.screen_post_detail) {
         binding.detailAuthor.text = post.author ?: getString(R.string.user_fallback)
         binding.detailDate.text = formatServerDate(post.published)
         binding.detailContent.text = post.content
+        val image = post.attachment?.takeIf {
+            it.type.equals("IMAGE", ignoreCase = true) || it.type.startsWith("image/", ignoreCase = true)
+        }
+        binding.detailAttachmentImage.visibility = if (image == null) View.GONE else View.VISIBLE
+        binding.detailAttachmentImage.loadServerImage(image?.url)
         binding.detailLink.text = post.link
         binding.detailLink.visibility = if (post.link.isNullOrBlank()) View.GONE else View.VISIBLE
         binding.detailLink.setOnClickListener { post.link?.let { openLink(requireContext(), it) } }
@@ -91,12 +97,13 @@ class PostDetailFragment : Fragment(R.layout.screen_post_detail) {
         }
         button.visibility = View.VISIBLE
         button.setOnClickListener {
-            val uri = Uri.parse("geo:${coords.latitude},${coords.longitude}?q=${coords.latitude},${coords.longitude}")
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, uri))
-            } catch (_: ActivityNotFoundException) {
-                Toast.makeText(requireContext(), R.string.detail_map_unavailable, Toast.LENGTH_SHORT).show()
-            }
+            findNavController().navigate(
+                R.id.action_global_locationPickerFragment,
+                bundleOf(
+                    ARG_INITIAL_COORDINATES to "${coords.latitude},${coords.longitude}",
+                    ARG_READ_ONLY to true,
+                ),
+            )
         }
     }
 

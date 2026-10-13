@@ -1,4 +1,4 @@
-package ru.netology.nework.data
+package ru.netology.nework.data.local
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext

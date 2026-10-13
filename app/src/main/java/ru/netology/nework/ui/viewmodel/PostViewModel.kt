@@ -1,4 +1,4 @@
-package ru.netology.nework.ui
+package ru.netology.nework.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.netology.nework.domain.model.NetworkException
+import ru.netology.nework.domain.model.Coordinates
+import ru.netology.nework.domain.model.MediaFile
+import ru.netology.nework.domain.usecase.MediaUseCase
 import ru.netology.nework.domain.usecase.PostUseCase
 
 sealed interface CreatePostState {
@@ -19,15 +22,34 @@ sealed interface CreatePostState {
 }
 
 @HiltViewModel
-class PostViewModel @Inject constructor(private val postUseCase: PostUseCase) : ViewModel() {
+class PostViewModel @Inject constructor(
+    private val postUseCase: PostUseCase,
+    private val mediaUseCase: MediaUseCase,
+) : ViewModel() {
     private val _createPost = MutableStateFlow<CreatePostState>(CreatePostState.Idle)
     val createPost: StateFlow<CreatePostState> = _createPost.asStateFlow()
 
-    fun createPost(content: String, link: String? = null) = viewModelScope.launch {
+    fun createPost(
+        content: String,
+        link: String? = null,
+        mentionIds: List<Long> = emptyList(),
+        coords: Coordinates? = null,
+        mediaFile: MediaFile? = null,
+    ) = viewModelScope.launch {
+        if (_createPost.value == CreatePostState.Loading) return@launch
         val cleanContent = content.trim()
         if (cleanContent.isBlank()) { _createPost.value = CreatePostState.Error("Введите текст поста"); return@launch }
         _createPost.value = CreatePostState.Loading
-        runCatching { postUseCase.create(cleanContent, link?.trim()?.takeIf(String::isNotBlank)) }
+        runCatching {
+            val attachment = mediaFile?.let { mediaUseCase.upload(it) }
+            postUseCase.create(
+                cleanContent,
+                link?.trim()?.takeIf(String::isNotBlank),
+                mentionIds,
+                coords,
+                attachment,
+            )
+        }
             .onSuccess { _createPost.value = CreatePostState.Success }
             .onFailure { error ->
                 val message = if (error is NetworkException) error.message else error.message ?: "Не удалось опубликовать пост"

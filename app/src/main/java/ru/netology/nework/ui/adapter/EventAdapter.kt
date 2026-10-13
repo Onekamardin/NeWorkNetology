@@ -10,8 +10,9 @@ import android.widget.PopupMenu
 import ru.netology.nework.domain.model.Event
 import ru.netology.nework.databinding.ItemEventBinding
 import ru.netology.nework.R
-import ru.netology.nework.ui.formatServerDate
-import ru.netology.nework.ui.openLink
+import ru.netology.nework.ui.utils.formatServerDate
+import ru.netology.nework.ui.utils.openLink
+import ru.netology.nework.ui.utils.loadServerImage
 
 class EventAdapter(
     private val onLike: (Event) -> Unit,
@@ -47,11 +48,24 @@ class EventAdapter(
             binding.author.text = event.author?.ifBlank { itemView.context.getString(R.string.user_fallback) }
                 ?: itemView.context.getString(R.string.user_fallback)
             binding.date.text = itemView.context.getString(
+                R.string.event_published_line,
+                formatServerDate(event.published),
+            )
+            val eventType = if (event.type.equals("OFFLINE", ignoreCase = true)) {
+                itemView.context.getString(R.string.event_offline)
+            } else {
+                itemView.context.getString(R.string.event_online)
+            }
+            binding.eventDatetime.text = itemView.context.getString(
                 R.string.event_date_line,
-                event.type,
+                eventType,
                 formatServerDate(event.datetime),
             )
             binding.content.text = event.content
+            binding.authorAvatar.loadServerImage(event.authorAvatar)
+            val imageAttachment = event.attachment?.takeIf { it.type.equals("IMAGE", ignoreCase = true) || it.type.startsWith("image/", ignoreCase = true) }
+            binding.attachmentImage.visibility = if (imageAttachment == null) View.GONE else View.VISIBLE
+            if (imageAttachment != null) binding.attachmentImage.loadServerImage(imageAttachment.url)
             binding.link.text = event.link
             binding.link.visibility = if (event.link.isNullOrBlank()) android.view.View.GONE else android.view.View.VISIBLE
             binding.link.setOnClickListener { event.link?.let { openLink(itemView.context, it) } }

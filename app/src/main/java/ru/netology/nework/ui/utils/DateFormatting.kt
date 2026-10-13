@@ -1,4 +1,4 @@
-package ru.netology.nework.ui
+package ru.netology.nework.ui.utils
 
 import java.time.Instant
 import java.time.LocalDateTime

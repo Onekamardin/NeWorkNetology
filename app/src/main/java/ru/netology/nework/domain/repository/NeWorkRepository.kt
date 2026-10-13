@@ -3,10 +3,13 @@ package ru.netology.nework.domain.repository
 import ru.netology.nework.domain.model.AuthenticationResult
 import ru.netology.nework.domain.model.AvatarFile
 import ru.netology.nework.domain.model.Credentials
+import ru.netology.nework.domain.model.Coordinates
 import ru.netology.nework.domain.model.Event
 import ru.netology.nework.domain.model.EventCreateRequest
 import ru.netology.nework.domain.model.Job
 import ru.netology.nework.domain.model.JobCreateRequest
+import ru.netology.nework.domain.model.MediaFile
+import ru.netology.nework.domain.model.Attachment
 import ru.netology.nework.domain.model.Post
 import ru.netology.nework.domain.model.User
 
@@ -25,7 +28,8 @@ interface NeWorkRepository {
     suspend fun unlikeEvent(id: Long): Event
     suspend fun deletePost(id: Long)
     suspend fun deleteEvent(id: Long)
-    suspend fun createPost(content: String, link: String? = null): Post
+    suspend fun uploadMedia(file: MediaFile): Attachment
+    suspend fun createPost(content: String, link: String? = null, mentionIds: List<Long> = emptyList(), coords: Coordinates? = null, attachment: Attachment? = null): Post
     suspend fun createEvent(request: EventCreateRequest): Event
     suspend fun authenticate(credentials: Credentials): AuthenticationResult
     suspend fun register(login: String, name: String, password: String, avatar: AvatarFile?): AuthenticationResult

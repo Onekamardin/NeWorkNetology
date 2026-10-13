@@ -1,16 +1,16 @@
 package ru.netology.nework.ui.fragments
 
-import ru.netology.nework.ui.AppUiActions
-import ru.netology.nework.ui.FeedViewModel
-import ru.netology.nework.ui.openLink
+import ru.netology.nework.ui.common.AppUiActions
+import ru.netology.nework.ui.viewmodel.FeedViewModel
+import ru.netology.nework.ui.utils.openLink
+import ru.netology.nework.ui.utils.formatServerDate
+import ru.netology.nework.ui.utils.loadServerImage
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.core.os.bundleOf
+import androidx.navigation.fragment.findNavController
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -18,9 +18,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import ru.netology.nework.R
 import ru.netology.nework.domain.model.Coordinates
+import ru.netology.nework.ui.fragments.LocationPickerFragment.Companion.ARG_INITIAL_COORDINATES
+import ru.netology.nework.ui.fragments.LocationPickerFragment.Companion.ARG_READ_ONLY
 import ru.netology.nework.domain.model.Event
 import ru.netology.nework.databinding.ScreenEventDetailBinding
-import ru.netology.nework.ui.formatServerDate
 
 class EventDetailFragment : Fragment(R.layout.screen_event_detail) {
     private val viewModel: FeedViewModel by activityViewModels()
@@ -52,8 +53,22 @@ class EventDetailFragment : Fragment(R.layout.screen_event_detail) {
 
     private fun showEvent(event: Event) {
         binding.detailAuthor.text = event.author ?: getString(R.string.user_fallback)
-        binding.detailDate.text = formatServerDate(event.datetime)
+        val eventType = if (event.type.equals("OFFLINE", ignoreCase = true)) {
+            getString(R.string.event_offline)
+        } else {
+            getString(R.string.event_online)
+        }
+        binding.detailDate.text = getString(
+            R.string.event_date_line,
+            eventType,
+            formatServerDate(event.datetime),
+        )
         binding.detailContent.text = event.content
+        val image = event.attachment?.takeIf {
+            it.type.equals("IMAGE", ignoreCase = true) || it.type.startsWith("image/", ignoreCase = true)
+        }
+        binding.detailAttachmentImage.visibility = if (image == null) View.GONE else View.VISIBLE
+        binding.detailAttachmentImage.loadServerImage(image?.url)
         binding.detailLink.text = event.link
         binding.detailLink.visibility = if (event.link.isNullOrBlank()) View.GONE else View.VISIBLE
         binding.detailLink.setOnClickListener { event.link?.let { openLink(requireContext(), it) } }
@@ -95,12 +110,13 @@ class EventDetailFragment : Fragment(R.layout.screen_event_detail) {
         }
         button.visibility = View.VISIBLE
         button.setOnClickListener {
-            val uri = Uri.parse("geo:${coords.latitude},${coords.longitude}?q=${coords.latitude},${coords.longitude}")
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, uri))
-            } catch (_: ActivityNotFoundException) {
-                Toast.makeText(requireContext(), R.string.detail_map_unavailable, Toast.LENGTH_SHORT).show()
-            }
+            findNavController().navigate(
+                R.id.action_global_locationPickerFragment,
+                bundleOf(
+                    ARG_INITIAL_COORDINATES to "${coords.latitude},${coords.longitude}",
+                    ARG_READ_ONLY to true,
+                ),
+            )
         }
     }
 

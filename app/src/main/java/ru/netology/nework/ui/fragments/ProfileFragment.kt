@@ -1,14 +1,14 @@
 package ru.netology.nework.ui.fragments
 
-import ru.netology.nework.ui.AppUiActions
-import ru.netology.nework.ui.ProfileViewModel
-import ru.netology.nework.ui.FeedViewModel
-import ru.netology.nework.ui.ProfileState
-import ru.netology.nework.ui.JobOperationState
-import ru.netology.nework.ui.AuthViewModel
-import ru.netology.nework.ui.FeedActionResult
+import ru.netology.nework.ui.common.AppUiActions
+import ru.netology.nework.ui.viewmodel.ProfileViewModel
+import ru.netology.nework.ui.viewmodel.FeedViewModel
+import ru.netology.nework.ui.viewmodel.ProfileState
+import ru.netology.nework.ui.viewmodel.JobOperationState
+import ru.netology.nework.ui.viewmodel.AuthViewModel
+import ru.netology.nework.ui.viewmodel.FeedActionResult
+import ru.netology.nework.ui.utils.loadServerImage
 
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
@@ -18,10 +18,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import ru.netology.nework.BuildConfig
 import ru.netology.nework.R
 import ru.netology.nework.domain.model.Job
 import ru.netology.nework.domain.model.Post
@@ -29,7 +26,6 @@ import ru.netology.nework.domain.model.User
 import ru.netology.nework.databinding.ScreenProfileBinding
 import ru.netology.nework.ui.adapter.JobAdapter
 import ru.netology.nework.ui.adapter.PostAdapter
-import java.net.URL
 
 class ProfileFragment : Fragment(R.layout.screen_profile) {
 
@@ -41,7 +37,6 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
     private val binding get() = _binding!!
     private var selectedTab = 0
     private var profileUser: User? = null
-    private var displayedAvatar: String? = null
     private val uiActions get() = activity as? AppUiActions
     private val postAdapter by lazy {
         PostAdapter({ post ->
@@ -131,7 +126,7 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
         screen.profileLogin.text = user.login?.let { "@$it" }.orEmpty()
         val isMyProfile = user.id == authViewModel.currentUser()?.id
         screen.profileAddJob.visibility = if (isMyProfile && selectedTab == 1) View.VISIBLE else View.GONE
-        showAvatar(user.avatar)
+        screen.profileAvatar.loadServerImage(user.avatar)
 
         if (selectedTab == 0) {
             screen.profileRecycler.adapter = postAdapter
@@ -148,28 +143,6 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
             val message = state.jobs.error ?: if (state.jobs.items.isEmpty() && !state.jobs.loading) getString(R.string.profile_jobs_empty) else null
             screen.profileMessage.text = message
             screen.profileMessage.visibility = if (message == null) View.GONE else View.VISIBLE
-        }
-    }
-
-    private fun showAvatar(path: String?) {
-        if (displayedAvatar == path) return
-        displayedAvatar = path
-        binding.profileAvatar.setImageResource(android.R.drawable.sym_def_app_icon)
-        if (path.isNullOrBlank()) return
-        viewLifecycleOwner.lifecycleScope.launch {
-            val bitmap = withContext(Dispatchers.IO) {
-                runCatching {
-                    val baseUrl = BuildConfig.BASE_URL.removeSuffix("api/")
-                    val avatarUrl = if (path.startsWith("http://") || path.startsWith("https://")) path else baseUrl + path.removePrefix("/")
-                    val connection = URL(avatarUrl).openConnection().apply {
-                        connectTimeout = 5_000
-                        readTimeout = 5_000
-                        setRequestProperty("Api-Key", BuildConfig.API_KEY)
-                    }
-                    connection.getInputStream().use(BitmapFactory::decodeStream)
-                }.getOrNull()
-            }
-            if (_binding != null && displayedAvatar == path && bitmap != null) binding.profileAvatar.setImageBitmap(bitmap)
         }
     }
 

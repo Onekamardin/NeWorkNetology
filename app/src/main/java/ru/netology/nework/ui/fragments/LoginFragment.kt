@@ -1,9 +1,9 @@
 package ru.netology.nework.ui.fragments
 
-import ru.netology.nework.ui.AppUiActions
-import ru.netology.nework.ui.AuthViewModel
-import ru.netology.nework.ui.AuthOperation
-import ru.netology.nework.ui.AuthState
+import ru.netology.nework.ui.common.AppUiActions
+import ru.netology.nework.ui.viewmodel.AuthViewModel
+import ru.netology.nework.ui.viewmodel.AuthOperation
+import ru.netology.nework.ui.viewmodel.AuthState
 
 import android.os.Bundle
 import android.view.View

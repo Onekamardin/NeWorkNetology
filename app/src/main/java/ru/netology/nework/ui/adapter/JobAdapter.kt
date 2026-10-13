@@ -8,7 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import ru.netology.nework.R
 import ru.netology.nework.domain.model.Job
 import ru.netology.nework.databinding.ItemJobBinding
-import ru.netology.nework.ui.formatJobDate
+import ru.netology.nework.ui.utils.formatJobDate
 
 class JobAdapter(private val onDelete: (Job) -> Unit) : ListAdapter<Job, JobAdapter.JobHolder>(Diff) {
     var allowDelete: Boolean = false

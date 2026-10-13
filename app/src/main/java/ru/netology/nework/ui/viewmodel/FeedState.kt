@@ -1,4 +1,4 @@
-package ru.netology.nework.ui
+package ru.netology.nework.ui.viewmodel
 
 data class FeedState<T>(
     val items: List<T> = emptyList(),

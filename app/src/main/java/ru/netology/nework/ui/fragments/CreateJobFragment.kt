@@ -1,9 +1,9 @@
 package ru.netology.nework.ui.fragments
 
-import ru.netology.nework.ui.AppUiActions
-import ru.netology.nework.ui.ProfileViewModel
-import ru.netology.nework.ui.JobOperationState
-import ru.netology.nework.ui.SaveableScreen
+import ru.netology.nework.ui.common.AppUiActions
+import ru.netology.nework.ui.viewmodel.ProfileViewModel
+import ru.netology.nework.ui.viewmodel.JobOperationState
+import ru.netology.nework.ui.common.SaveableScreen
 
 import android.app.DatePickerDialog
 import android.os.Bundle

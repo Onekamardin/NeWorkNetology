@@ -1,4 +1,4 @@
-package ru.netology.nework.ui
+package ru.netology.nework.ui.common
 
 import ru.netology.nework.domain.model.Job
 import ru.netology.nework.domain.model.Post

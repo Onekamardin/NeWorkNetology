@@ -1,4 +1,4 @@
-package ru.netology.nework.ui
+package ru.netology.nework.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,7 +13,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ru.netology.nework.domain.model.EventCreateRequest
+import ru.netology.nework.domain.model.Coordinates
 import ru.netology.nework.domain.model.NetworkException
+import ru.netology.nework.domain.model.MediaFile
+import ru.netology.nework.domain.usecase.MediaUseCase
 import ru.netology.nework.domain.usecase.EventUseCase
 
 sealed interface CreateEventState {
@@ -24,7 +27,10 @@ sealed interface CreateEventState {
 }
 
 @HiltViewModel
-class EventViewModel @Inject constructor(private val eventUseCase: EventUseCase) : ViewModel() {
+class EventViewModel @Inject constructor(
+    private val eventUseCase: EventUseCase,
+    private val mediaUseCase: MediaUseCase,
+) : ViewModel() {
     private val _createEvent = MutableStateFlow<CreateEventState>(CreateEventState.Idle)
     val createEvent: StateFlow<CreateEventState> = _createEvent.asStateFlow()
     private val _eventDateMillis = MutableStateFlow(System.currentTimeMillis() + 60 * 60 * 1000)
@@ -44,7 +50,16 @@ class EventViewModel @Inject constructor(private val eventUseCase: EventUseCase)
         _selectedSpeakerIds.value = emptySet()
     }
 
-    fun createEvent(content: String, dateMillis: Long, offline: Boolean, speakerIds: List<Long>, link: String? = null) {
+    fun createEvent(
+        content: String,
+        dateMillis: Long,
+        offline: Boolean,
+        speakerIds: List<Long>,
+        link: String? = null,
+        coords: Coordinates? = null,
+        mediaFile: MediaFile? = null,
+    ) {
+        if (_createEvent.value == CreateEventState.Loading) return
         if (content.isBlank()) { _createEvent.value = CreateEventState.Error("Введите описание события"); return }
         val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
@@ -52,13 +67,16 @@ class EventViewModel @Inject constructor(private val eventUseCase: EventUseCase)
         createEvent(EventCreateRequest(
             content = content.trim(), datetime = formatter.format(Date(dateMillis)),
             type = if (offline) "OFFLINE" else "ONLINE", speakerIds = speakerIds,
-            link = link?.trim()?.takeIf(String::isNotBlank),
-        ))
+            link = link?.trim()?.takeIf(String::isNotBlank), coords = coords,
+        ), mediaFile)
     }
 
-    private fun createEvent(request: EventCreateRequest) = viewModelScope.launch {
+    private fun createEvent(request: EventCreateRequest, mediaFile: MediaFile?) = viewModelScope.launch {
         _createEvent.value = CreateEventState.Loading
-        runCatching { eventUseCase.create(request) }
+        runCatching {
+            val attachment = mediaFile?.let { mediaUseCase.upload(it) }
+            eventUseCase.create(request.copy(attachment = attachment))
+        }
             .onSuccess { _createEvent.value = CreateEventState.Success }
             .onFailure { error ->
                 val message = if (error is NetworkException) error.message else error.message ?: "Не удалось создать событие"

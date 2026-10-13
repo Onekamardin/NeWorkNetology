@@ -1,25 +1,40 @@
 package ru.netology.nework.ui.fragments
 
-import ru.netology.nework.ui.AppUiActions
-import ru.netology.nework.ui.EventViewModel
-import ru.netology.nework.ui.FeedViewModel
-import ru.netology.nework.ui.CreateEventState
-import ru.netology.nework.ui.SaveableScreen
+import ru.netology.nework.ui.common.AppUiActions
+import ru.netology.nework.ui.viewmodel.EventViewModel
+import ru.netology.nework.ui.viewmodel.FeedViewModel
+import ru.netology.nework.ui.viewmodel.CreateEventState
+import ru.netology.nework.ui.common.SaveableScreen
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import android.net.Uri
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import ru.netology.nework.domain.model.MediaFile
+import ru.netology.nework.ui.utils.EmptyMediaException
+import ru.netology.nework.ui.utils.MediaTooLargeException
+import ru.netology.nework.ui.utils.UnsupportedMediaException
+import ru.netology.nework.ui.utils.readMediaFile
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
+import androidx.core.os.bundleOf
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
+import ru.netology.nework.BuildConfig
 import ru.netology.nework.R
 import ru.netology.nework.domain.model.User
+import ru.netology.nework.domain.model.Coordinates
 import ru.netology.nework.databinding.ScreenCreateEventBinding
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -32,6 +47,28 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     private val binding get() = _binding!!
     private val uiActions get() = activity as? AppUiActions
     private lateinit var eventDate: Calendar
+    private var selectedCoordinates: Coordinates? = null
+    private var selectedMedia: MediaFile? = null
+    private var mediaLoading = false
+    private var pendingCameraUri: Uri? = null
+    private var pendingCameraFile: File? = null
+
+    private val galleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let(::loadAttachment)
+    }
+    private val mediaLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(::loadAttachment)
+    }
+    private val cameraLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        val uri = pendingCameraUri
+        if (saved && uri != null) {
+            loadAttachment(uri)
+        } else {
+            pendingCameraFile?.delete()
+            pendingCameraUri = null
+            pendingCameraFile = null
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -41,14 +78,100 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         feedViewModel.loadUsers()
         updateDateLabel()
         binding.eventDateButton.setOnClickListener { chooseDate() }
+        binding.eventLocationButton.setOnClickListener { openLocationPicker() }
+        observeLocationResult()
+        updateLocationButton()
         binding.eventSpeakersButton.setOnClickListener { chooseSpeakers(feedViewModel.users.value.items) }
         binding.eventCancelButton.setOnClickListener { findNavController().navigateUp() }
+        binding.attachmentGalleryButton.setOnClickListener { galleryLauncher.launch("image/*") }
+        binding.attachmentCameraButton.setOnClickListener { openCamera() }
+        binding.attachmentAudioVideoButton.setOnClickListener {
+            mediaLauncher.launch(arrayOf("audio/*", "video/*"))
+        }
+        binding.attachmentRemoveButton.setOnClickListener { clearAttachment() }
+        updateAttachmentPreview()
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.createEvent.collect { showSaveResult(it) }
             }
         }
+    }
+
+    private fun openCamera() {
+        try {
+            val mediaDirectory = File(requireContext().cacheDir, "media")
+            mediaDirectory.mkdirs()
+            val file = File.createTempFile("nework_photo_", ".jpg", mediaDirectory)
+            val uri = FileProvider.getUriForFile(
+                requireContext(),
+                "${BuildConfig.APPLICATION_ID}.fileprovider",
+                file,
+            )
+            pendingCameraFile = file
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
+        } catch (_: Exception) {
+            uiActions?.showMessage(getString(R.string.attachment_camera_error))
+        }
+    }
+
+    private fun loadAttachment(uri: Uri) {
+        val context = requireContext()
+        mediaLoading = true
+        updateAttachmentPreview()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { readMediaFile(context, uri) }
+            }
+            mediaLoading = false
+            if (uri == pendingCameraUri) {
+                pendingCameraFile?.delete()
+                pendingCameraUri = null
+                pendingCameraFile = null
+            }
+            result.onSuccess { mediaFile ->
+                selectedMedia = mediaFile
+                updateAttachmentPreview()
+            }.onFailure { error ->
+                val messageId = when (error) {
+                    is MediaTooLargeException -> R.string.attachment_too_large
+                    is UnsupportedMediaException -> R.string.attachment_type_error
+                    is EmptyMediaException -> R.string.attachment_read_error
+                    else -> R.string.attachment_read_error
+                }
+                updateAttachmentPreview()
+                uiActions?.showMessage(getString(messageId))
+            }
+        }
+    }
+
+    private fun updateAttachmentPreview() {
+        val screen = _binding ?: return
+        val mediaFile = selectedMedia
+        screen.attachmentName.visibility = if (mediaFile == null && !mediaLoading) View.GONE else View.VISIBLE
+        screen.attachmentRemoveButton.visibility = if (mediaFile == null) View.GONE else View.VISIBLE
+        screen.attachmentPreview.visibility = if (mediaFile?.mimeType?.startsWith("image/") == true) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+        screen.attachmentName.text = when {
+            mediaLoading -> getString(R.string.attachment_loading)
+            mediaFile != null -> getString(R.string.attachment_selected, mediaFile.fileName)
+            else -> getString(R.string.attachment_none)
+        }
+        if (mediaFile?.mimeType?.startsWith("image/") == true) {
+            Glide.with(this).load(mediaFile.bytes).centerCrop().into(screen.attachmentPreview)
+        } else {
+            Glide.with(this).clear(screen.attachmentPreview)
+        }
+    }
+
+    private fun clearAttachment() {
+        mediaLoading = false
+        selectedMedia = null
+        updateAttachmentPreview()
     }
 
     private fun chooseDate() {
@@ -110,6 +233,10 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     }
 
     override fun save() {
+        if (mediaLoading) {
+            uiActions?.showMessage(getString(R.string.attachment_loading))
+            return
+        }
         val content = binding.eventContentInput.text?.toString()?.trim().orEmpty()
         binding.eventContentLayout.error = if (content.isBlank()) getString(R.string.error_required) else null
         if (content.isBlank()) return
@@ -119,7 +246,42 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
             offline = binding.eventOffline.isChecked,
             speakerIds = viewModel.selectedSpeakerIds.value.toList(),
             link = binding.eventLinkInput.text?.toString(),
+            coords = selectedCoordinates,
+            mediaFile = selectedMedia,
         )
+    }
+
+    private fun openLocationPicker() {
+        val coordinates = selectedCoordinates?.let { "${it.latitude},${it.longitude}" }.orEmpty()
+        findNavController().navigate(
+            R.id.action_global_locationPickerFragment,
+            bundleOf("initial_coordinates" to coordinates),
+        )
+    }
+
+    private fun observeLocationResult() {
+        val handle = findNavController().currentBackStackEntry?.savedStateHandle ?: return
+        handle.getLiveData<String>(LocationPickerFragment.RESULT_KEY).observe(viewLifecycleOwner) { value ->
+            val parts = value.split(",")
+            if (parts.size == 2) {
+                val latitude = parts[0].toDoubleOrNull()
+                val longitude = parts[1].toDoubleOrNull()
+                if (latitude != null && longitude != null) {
+                    selectedCoordinates = Coordinates(latitude, longitude)
+                    updateLocationButton()
+                }
+            }
+            handle.remove<String>(LocationPickerFragment.RESULT_KEY)
+        }
+    }
+
+    private fun updateLocationButton() {
+        val coordinates = selectedCoordinates
+        binding.eventLocationButton.text = if (coordinates == null) {
+            getString(R.string.location_choose)
+        } else {
+            getString(R.string.location_selected, "%.4f".format(coordinates.latitude), "%.4f".format(coordinates.longitude))
+        }
     }
 
     private fun showSaveResult(state: CreateEventState) {
@@ -131,6 +293,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
             }
             CreateEventState.Success -> {
                 uiActions?.showMessage(getString(R.string.event_created))
+                clearAttachment()
                 viewModel.clearCreateEventState()
                 findNavController().navigateUp()
             }
@@ -149,6 +312,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     }
 
     override fun onDestroyView() {
+        mediaLoading = false
         super.onDestroyView()
         _binding = null
     }

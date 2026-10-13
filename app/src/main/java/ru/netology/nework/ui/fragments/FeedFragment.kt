@@ -1,12 +1,12 @@
 package ru.netology.nework.ui.fragments
 
-import ru.netology.nework.ui.AppUiActions
-import ru.netology.nework.ui.FeedViewModel
-import ru.netology.nework.ui.AuthViewModel
-import ru.netology.nework.ui.PostViewModel
-import ru.netology.nework.ui.EventViewModel
-import ru.netology.nework.ui.FeedState
-import ru.netology.nework.ui.FeedActionResult
+import ru.netology.nework.ui.common.AppUiActions
+import ru.netology.nework.ui.viewmodel.FeedViewModel
+import ru.netology.nework.ui.viewmodel.AuthViewModel
+import ru.netology.nework.ui.viewmodel.PostViewModel
+import ru.netology.nework.ui.viewmodel.EventViewModel
+import ru.netology.nework.ui.viewmodel.FeedState
+import ru.netology.nework.ui.viewmodel.FeedActionResult
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment

@@ -10,7 +10,10 @@
 - XML-формы входа и регистрации с проверкой обязательных полей и повторного пароля.
 - Регистрация отправляется в формате `multipart/form-data` с полями `login`, `pass`, `name` и необязательным файлом аватара `file`.
 - Создание и отправка постов для авторизованного пользователя; к посту можно добавить ссылку.
+- В форме поста можно выбрать точку на карте; выбранные координаты отправляются вместе с постом.
+- При создании поста можно выбрать несколько пользователей для упоминания.
 - Создание событий для авторизованного пользователя: описание, ссылка, онлайн/офлайн формат, дата и время, выбор спикеров.
+- В форме события можно указать место на карте; координаты отправляются вместе с событием.
 - Просмотр профиля пользователя и своего профиля: аватар, стена с постами и список мест работы.
 - В своём профиле можно добавлять и удалять места работы; пустая дата окончания означает, что работа продолжается.
 - Если пользователь не вошёл, кнопка создания поста предлагает перейти ко входу или регистрации.
@@ -24,8 +27,13 @@
 - Заголовок `Api-Key` автоматически добавляется к каждому запросу.
 - Секрет хранится локально в `apikey.properties`, этот файл исключён из Git.
 - Карточки поста и события показывают ссылку, по нажатию на которую открывается браузер.
+- В формах поста и события можно сделать фото, выбрать его из галереи или указать аудио/видео. Файл до 15 МБ загружается методом `POST /api/media`, затем его URL передаётся в `attachment` публикации.
+- В карточках постов и событий отображаются аватары авторов и прикреплённые изображения, если сервер вернул их в публикации.
 - Авторизованные пользователи могут ставить и убирать отметку «Нравится» у постов и событий; счётчик показывает актуальное количество отметок.
-- По нажатию на пост или событие открывается экран с упоминаниями, последним местом работы автора, участниками/спикерами и переходом к координатам в приложении карт.
+- Автор поста или события может открыть меню карточки и удалить свою публикацию после подтверждения.
+- По нажатию на пост или событие открывается экран с изображением (если оно прикреплено), упоминаниями, последним местом работы автора, участниками/спикерами и картой с меткой места прямо в приложении.
+- Аватары в списке пользователей и профиле, а также изображения на подробных экранах загружаются общим загрузчиком с заголовком `Api-Key`.
+- Для выбора места используется карта MapLibre; для загрузки карты нужен интернет.
 - Поле `author` в ответах постов и событий разбирается как строка (формат, который показал сервер при первом запуске).
 - Даты публикации и даты события форматируются как `дд.мм.гггг чч:мм` в часовом поясе устройства.
 
@@ -43,24 +51,28 @@
 
 | Путь | Назначение |
 | --- | --- |
-| `app/src/main/java/ru/netology/nework/ui/MainActivity.kt` | Единственная Activity: NavHost, AppBar и нижнее меню |
+| `app/src/main/java/ru/netology/nework/ui/activity/MainActivity.kt` | Единственная Activity: NavHost, AppBar и нижнее меню |
 | `app/src/main/res/navigation/nav_graph.xml` | Граф переходов между Fragment |
 | `app/src/main/java/ru/netology/nework/ui/fragments/` | Экранные Fragment; они выполняют переходы через `findNavController()` |
 | `app/src/main/res/layout/activity_main.xml` | Главный экран и нижняя навигация |
 | `app/src/main/res/layout/item_*.xml` | XML-карточки поста, события и пользователя |
 | `app/src/main/java/ru/netology/nework/ui/adapter/` | RecyclerView-адаптеры списков |
+| `app/src/main/java/ru/netology/nework/ui/utils/` | Форматирование дат, открытие ссылок, загрузка изображений и чтение выбранных медиафайлов |
 | `app/src/main/res/layout/screen_login.xml` и `screen_register.xml` | Формы входа и регистрации |
 | `app/src/main/res/layout/screen_create_post.xml` | Форма создания текстового поста |
+| `app/src/main/res/layout/screen_location_picker.xml` | Экран выбора места на карте |
 | `app/src/main/res/layout/screen_profile.xml` | Профиль, его стена и вкладка работ |
 | `app/src/main/res/layout/screen_create_job.xml` | Форма добавления места работы |
 | `app/src/main/res/layout/screen_post_detail.xml` и `screen_event_detail.xml` | Подробные экраны поста и события |
-| `app/src/main/java/ru/netology/nework/data/AuthStore.kt` | Локальное состояние входа и токен |
-| `app/src/main/java/ru/netology/nework/ui/AuthViewModel.kt` | Вход, регистрация, текущий пользователь и выход |
-| `app/src/main/java/ru/netology/nework/ui/FeedViewModel.kt` | Посты, события, пользователи, отметки «Нравится» и данные для экранов деталей |
-| `app/src/main/java/ru/netology/nework/ui/PostViewModel.kt` | Создание поста |
-| `app/src/main/java/ru/netology/nework/ui/EventViewModel.kt` | Создание события и состояние его формы |
-| `app/src/main/java/ru/netology/nework/ui/ProfileViewModel.kt` | Профиль, стена, работы и операции с местами работы |
-| `app/src/main/java/ru/netology/nework/ui/FeedState.kt` | Общее состояние списков |
+| `app/src/main/java/ru/netology/nework/data/local/AuthStore.kt` | Локальное состояние входа и токен |
+| `app/src/main/java/ru/netology/nework/ui/common/AppUiActions.kt` | Действия Activity, доступные Fragment |
+| `app/src/main/java/ru/netology/nework/ui/viewmodel/AuthViewModel.kt` | Вход, регистрация, текущий пользователь и выход |
+| `app/src/main/java/ru/netology/nework/ui/viewmodel/FeedViewModel.kt` | Посты, события, пользователи, отметки «Нравится» и данные для экранов деталей |
+| `app/src/main/java/ru/netology/nework/ui/viewmodel/PostViewModel.kt` | Создание поста |
+| `app/src/main/java/ru/netology/nework/ui/viewmodel/EventViewModel.kt` | Создание события и состояние его формы |
+| `app/src/main/java/ru/netology/nework/domain/usecase/MediaUseCase.kt` | Загрузка файла на сервер перед созданием поста или события |
+| `app/src/main/java/ru/netology/nework/ui/viewmodel/ProfileViewModel.kt` | Профиль, стена, работы и операции с местами работы |
+| `app/src/main/java/ru/netology/nework/ui/viewmodel/FeedState.kt` | Общее состояние списков |
 | `app/src/main/java/ru/netology/nework/data/api/NeWorkApi.kt` | Адреса запросов; интерфейс работает с DTO сервера |
 | `app/src/main/java/ru/netology/nework/data/api/dto/` | DTO и преобразования между ответами API и моделями domain |
 | `app/src/main/java/ru/netology/nework/domain/model/Models.kt` | Модели предметной области |
@@ -70,7 +82,7 @@
 
 ## Что пока не реализовано
 
-- Фото/аудио/видео, выбор места и упоминаний при создании постов и событий.
+- Редактирование уже созданных постов и событий (серверный метод обновления в текущей интеграции отсутствует).
 
 ## Важно про сервер
 

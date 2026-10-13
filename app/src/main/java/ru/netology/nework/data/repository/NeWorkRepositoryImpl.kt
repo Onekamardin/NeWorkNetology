@@ -8,17 +8,20 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import retrofit2.Response
-import ru.netology.nework.data.AuthStore
+import ru.netology.nework.data.local.AuthStore
 import ru.netology.nework.data.api.NeWorkApi
 import ru.netology.nework.data.api.dto.toDomain
 import ru.netology.nework.data.api.dto.toDto
 import ru.netology.nework.domain.model.AuthenticationResult
 import ru.netology.nework.domain.model.AvatarFile
 import ru.netology.nework.domain.model.Credentials
+import ru.netology.nework.domain.model.Coordinates
 import ru.netology.nework.domain.model.Event
 import ru.netology.nework.domain.model.EventCreateRequest
 import ru.netology.nework.domain.model.Job
 import ru.netology.nework.domain.model.JobCreateRequest
+import ru.netology.nework.domain.model.MediaFile
+import ru.netology.nework.domain.model.Attachment
 import ru.netology.nework.domain.model.NetworkException
 import ru.netology.nework.domain.model.Post
 import ru.netology.nework.domain.model.User
@@ -52,8 +55,35 @@ class NeWorkRepositoryImpl @Inject constructor(
     override suspend fun deleteEvent(id: Long) {
         checkResponse(safeRequest { api.deleteEvent(id) })
     }
-    override suspend fun createPost(content: String, link: String?): Post = safeRequest {
-        api.createPost(Post(id = 0, content = content, link = link).toDto())
+    override suspend fun uploadMedia(file: MediaFile): Attachment {
+        val body = file.bytes.toRequestBody(file.mimeType.toMediaType())
+        val part = MultipartBody.Part.createFormData("file", file.fileName, body)
+        val response = safeRequest { api.uploadMedia(part) }
+        val type = when {
+            file.mimeType.startsWith("image/", ignoreCase = true) -> "IMAGE"
+            file.mimeType.startsWith("video/", ignoreCase = true) -> "VIDEO"
+            else -> "AUDIO"
+        }
+        return Attachment(response.url, type)
+    }
+
+    override suspend fun createPost(
+        content: String,
+        link: String?,
+        mentionIds: List<Long>,
+        coords: Coordinates?,
+        attachment: Attachment?,
+    ): Post = safeRequest {
+        api.createPost(
+            Post(
+                id = 0,
+                content = content,
+                link = link,
+                mentionIds = mentionIds,
+                coords = coords,
+                attachment = attachment,
+            ).toDto(),
+        )
     }.toDomain()
     override suspend fun createEvent(request: EventCreateRequest): Event = safeRequest { api.createEvent(request.toDto()) }.toDomain()
 
