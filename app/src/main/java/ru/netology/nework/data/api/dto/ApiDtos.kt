@@ -72,4 +72,5 @@ data class EventCreateRequestDto(
     val attachment: AttachmentDto? = null,
     val link: String? = null,
     val coords: CoordinatesDto? = null,
+    val id: Long = 0,
 )

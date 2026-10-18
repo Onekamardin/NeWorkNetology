@@ -64,7 +64,9 @@
     <string name="logout_success">Вы вышли из аккаунта</string>
     <string name="server_error_code">Ошибка сервера (%1$d)</string>
     <string name="create">Создать</string>
+    <string name="edit">Изменить</string>
     <string name="create_event_title">Новое событие</string>
+    <string name="edit_event_title">Изменить событие</string>
     <string name="event_content_hint">Описание события</string>
     <string name="event_type_label">Формат события</string>
     <string name="event_online">Онлайн</string>
@@ -76,8 +78,10 @@
     <string name="event_speakers_selected">Выбрано спикеров: %1$d</string>
     <string name="event_date_format">Состоится: %1$s</string>
     <string name="event_created">Событие создано</string>
+    <string name="event_updated">Событие изменено</string>
     <string name="auth_required_to_create">Чтобы создать пост, войдите или зарегистрируйтесь</string>
     <string name="create_post_title">Новый пост</string>
+    <string name="edit_post_title">Изменить пост</string>
     <string name="post_content_hint">Текст поста</string>
     <string name="link_hint">Ссылка (необязательно)</string>
     <string name="link_open_error">Не удалось открыть ссылку</string>
@@ -90,6 +94,7 @@
     <string name="post_mentions_selected">Выбрано пользователей: %1$d</string>
     <string name="post_mentions_loading">Загружаем пользователей. Попробуйте ещё раз через несколько секунд.</string>
     <string name="post_created">Пост опубликован</string>
+    <string name="post_updated">Пост изменён</string>
     <string name="save">Сохранить</string>
     <string name="cancel">Отмена</string>
     <string name="no_posts">Постов пока нет</string>

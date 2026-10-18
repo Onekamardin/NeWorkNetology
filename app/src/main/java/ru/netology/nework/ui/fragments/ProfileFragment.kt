@@ -6,6 +6,7 @@ import ru.netology.nework.ui.viewmodel.FeedViewModel
 import ru.netology.nework.ui.viewmodel.ProfileState
 import ru.netology.nework.ui.viewmodel.JobOperationState
 import ru.netology.nework.ui.viewmodel.AuthViewModel
+import ru.netology.nework.ui.viewmodel.PostViewModel
 import ru.netology.nework.ui.viewmodel.FeedActionResult
 import ru.netology.nework.ui.utils.loadServerImage
 
@@ -31,6 +32,7 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
     private val viewModel: ProfileViewModel by activityViewModels()
     private val feedViewModel: FeedViewModel by activityViewModels()
     private val authViewModel: AuthViewModel by activityViewModels()
+    private val postViewModel: PostViewModel by activityViewModels()
     private var _binding: ScreenProfileBinding? = null
     private val binding get() = _binding!!
     private var selectedTab = 0
@@ -42,7 +44,10 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
         }, { post ->
             feedViewModel.selectPost(post)
             findNavController().navigate(R.id.action_global_postDetailFragment)
-        }, { authViewModel.currentUser()?.id }, { post -> uiActions?.confirmDeletePost(post) })
+        }, { authViewModel.currentUser()?.id }, { post -> uiActions?.confirmDeletePost(post) }, { post ->
+            postViewModel.startEditing(post)
+            findNavController().navigate(R.id.action_global_createPostFragment)
+        })
     }
     private val jobAdapter by lazy { JobAdapter { uiActions?.confirmDeleteJob(it) } }
 

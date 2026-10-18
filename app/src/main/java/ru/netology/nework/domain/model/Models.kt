@@ -50,6 +50,7 @@ data class EventCreateRequest(
     val attachment: Attachment? = null,
     val link: String? = null,
     val coords: Coordinates? = null,
+    val id: Long = 0,
 )
 
 data class Attachment(val url: String, val type: String)

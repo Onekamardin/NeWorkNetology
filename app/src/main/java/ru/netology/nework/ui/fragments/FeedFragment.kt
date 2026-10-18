@@ -49,11 +49,17 @@ class FeedFragment : Fragment(R.layout.screen_feed) {
     private val postAdapter = PostAdapter(::onPostLike, { post ->
         viewModel.selectPost(post)
         findNavController().navigate(R.id.action_global_postDetailFragment)
-    }, { authViewModel.currentUser()?.id }, { post -> uiActions?.confirmDeletePost(post) })
+    }, { authViewModel.currentUser()?.id }, { post -> uiActions?.confirmDeletePost(post) }, { post ->
+        postViewModel.startEditing(post)
+        findNavController().navigate(R.id.action_global_createPostFragment)
+    })
     private val eventAdapter = EventAdapter(::onEventLike, { event ->
         viewModel.selectEvent(event)
         findNavController().navigate(R.id.action_global_eventDetailFragment)
-    }, { authViewModel.currentUser()?.id }, { event -> uiActions?.confirmDeleteEvent(event) })
+    }, { authViewModel.currentUser()?.id }, { event -> uiActions?.confirmDeleteEvent(event) }, { event ->
+        eventViewModel.startEditing(event)
+        findNavController().navigate(R.id.action_global_createEventFragment)
+    })
     private val userAdapter = UserAdapter { user -> openUserProfile(user) }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -117,6 +123,7 @@ class FeedFragment : Fragment(R.layout.screen_feed) {
             eventViewModel.resetEventDraft()
             findNavController().navigate(R.id.action_global_createEventFragment)
         } else {
+            postViewModel.clearEditing()
             postViewModel.clearCreatePostState()
             findNavController().navigate(R.id.action_global_createPostFragment)
         }

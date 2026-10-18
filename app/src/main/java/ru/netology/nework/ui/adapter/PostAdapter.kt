@@ -19,6 +19,7 @@ class PostAdapter(
     private val onOpen: (Post) -> Unit,
     private val currentUserId: () -> Long?,
     private val onDelete: (Post) -> Unit,
+    private val onEdit: (Post) -> Unit = {},
 ) : ListAdapter<Post, PostAdapter.PostHolder>(Diff) {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = PostHolder(
         ItemPostBinding.inflate(LayoutInflater.from(parent.context), parent, false),
@@ -33,6 +34,10 @@ class PostAdapter(
         holder.binding.menu.visibility = if (canDelete) View.VISIBLE else View.GONE
         holder.binding.menu.setOnClickListener { button ->
             PopupMenu(button.context, button).apply {
+                menu.add(R.string.edit).setOnMenuItemClickListener {
+                    onEdit(post)
+                    true
+                }
                 menu.add(R.string.delete).setOnMenuItemClickListener {
                     onDelete(post)
                     true

@@ -47,9 +47,9 @@ interface NeWorkApi {
     @POST("media")
     suspend fun uploadMedia(@Part file: MultipartBody.Part): MediaUploadDto
 
-    @POST("posts") suspend fun createPost(@Body body: PostDto): PostDto
+    @POST("posts") suspend fun savePost(@Body body: PostDto): PostDto
     @DELETE("posts/{id}") suspend fun deletePost(@Path("id") id: Long): Response<Unit>
-    @POST("events") suspend fun createEvent(@Body body: EventCreateRequestDto): EventDto
+    @POST("events") suspend fun saveEvent(@Body body: EventCreateRequestDto): EventDto
     @DELETE("events/{id}") suspend fun deleteEvent(@Path("id") id: Long): Response<Unit>
     @POST("events/{id}/participants") suspend fun participateEvent(@Path("id") id: Long): Response<Unit>
     @DELETE("events/{id}/participants") suspend fun leaveEvent(@Path("id") id: Long): Response<Unit>

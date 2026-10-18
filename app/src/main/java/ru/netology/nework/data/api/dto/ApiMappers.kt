@@ -26,8 +26,14 @@ fun CoordinatesDto.toDomain() = Coordinates(latitude, longitude)
 fun Credentials.toDto() = CredentialsDto(login, password)
 fun JobCreateRequest.toDto() = JobCreateRequestDto(name, position, start, finish, link)
 fun EventCreateRequest.toDto() = EventCreateRequestDto(
-    content, datetime, type, speakerIds, attachment?.let { AttachmentDto(it.url, it.type) }, link,
-    coords?.let { CoordinatesDto(it.latitude, it.longitude) },
+    content = content,
+    datetime = datetime,
+    type = type,
+    speakerIds = speakerIds,
+    attachment = attachment?.let { AttachmentDto(it.url, it.type) },
+    link = link,
+    coords = coords?.let { CoordinatesDto(it.latitude, it.longitude) },
+    id = id,
 )
 fun Post.toDto() = PostDto(
     id, authorId, author, authorAvatar, content, published, likeOwnerIds, likedByMe,

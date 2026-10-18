@@ -21,6 +21,7 @@ import ru.netology.nework.ui.utils.EmptyMediaException
 import ru.netology.nework.ui.utils.MediaTooLargeException
 import ru.netology.nework.ui.utils.UnsupportedMediaException
 import ru.netology.nework.ui.utils.readMediaFile
+import ru.netology.nework.ui.utils.loadServerImage
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AlertDialog
@@ -35,6 +36,7 @@ import ru.netology.nework.BuildConfig
 import ru.netology.nework.R
 import ru.netology.nework.domain.model.User
 import ru.netology.nework.domain.model.Coordinates
+import ru.netology.nework.domain.model.Event
 import ru.netology.nework.databinding.ScreenCreateEventBinding
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -49,6 +51,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     private lateinit var eventDate: Calendar
     private var selectedCoordinates: Coordinates? = null
     private var selectedMedia: MediaFile? = null
+    private var keepExistingAttachment = true
     private var mediaLoading = false
     private var pendingCameraUri: Uri? = null
     private var pendingCameraFile: File? = null
@@ -74,7 +77,9 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         super.onViewCreated(view, savedInstanceState)
         _binding = ScreenCreateEventBinding.bind(view)
         eventDate = Calendar.getInstance().apply { timeInMillis = viewModel.eventDateMillis.value }
-        uiActions?.setScreenTitle(getString(R.string.create_event_title))
+        val editingEvent = viewModel.editingEvent.value
+        uiActions?.setScreenTitle(getString(if (editingEvent == null) R.string.create_event_title else R.string.edit_event_title))
+        if (editingEvent != null) fillEventForEditing(editingEvent)
         feedViewModel.loadUsers()
         updateDateLabel()
         binding.eventDateButton.setOnClickListener { chooseDate() }
@@ -83,7 +88,11 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         updateLocationButton()
         binding.eventSpeakersButton.setOnClickListener { chooseSpeakers(feedViewModel.users.value.items) }
         updateSpeakersSummary()
-        binding.eventCancelButton.setOnClickListener { findNavController().navigateUp() }
+        binding.eventCancelButton.setOnClickListener {
+            viewModel.resetEventDraft()
+            viewModel.clearCreateEventState()
+            findNavController().navigateUp()
+        }
         binding.attachmentGalleryButton.setOnClickListener { galleryLauncher.launch("image/*") }
         binding.attachmentCameraButton.setOnClickListener { openCamera() }
         binding.attachmentAudioVideoButton.setOnClickListener {
@@ -150,16 +159,22 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     private fun updateAttachmentPreview() {
         val screen = _binding ?: return
         val mediaFile = selectedMedia
-        screen.attachmentName.visibility = if (mediaFile == null && !mediaLoading) View.GONE else View.VISIBLE
-        screen.attachmentRemoveButton.visibility = if (mediaFile == null) View.GONE else View.VISIBLE
-        screen.attachmentPreview.visibility = if (mediaFile?.mimeType?.startsWith("image/") == true) View.VISIBLE else View.GONE
+        val oldAttachment = viewModel.editingEvent.value?.attachment?.takeIf { keepExistingAttachment }
+        val imageSelected = mediaFile?.mimeType?.startsWith("image/") == true ||
+            (mediaFile == null && oldAttachment?.type?.let { it.equals("IMAGE", true) || it.startsWith("image/", true) } == true)
+        screen.attachmentName.visibility = if (mediaFile == null && oldAttachment == null && !mediaLoading) View.GONE else View.VISIBLE
+        screen.attachmentRemoveButton.visibility = if (mediaFile == null && oldAttachment == null) View.GONE else View.VISIBLE
+        screen.attachmentPreview.visibility = if (imageSelected) View.VISIBLE else View.GONE
         screen.attachmentName.text = when {
             mediaLoading -> getString(R.string.attachment_loading)
             mediaFile != null -> getString(R.string.attachment_selected, mediaFile.fileName)
+            oldAttachment != null -> getString(R.string.attachment_selected, oldAttachment.url.substringAfterLast('/').substringBefore('?'))
             else -> getString(R.string.attachment_none)
         }
         if (mediaFile?.mimeType?.startsWith("image/") == true) {
             Glide.with(this).load(mediaFile.bytes).centerCrop().into(screen.attachmentPreview)
+        } else if (imageSelected && oldAttachment != null) {
+            screen.attachmentPreview.loadServerImage(oldAttachment.url)
         } else {
             Glide.with(this).clear(screen.attachmentPreview)
         }
@@ -168,6 +183,19 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     private fun clearAttachment() {
         mediaLoading = false
         selectedMedia = null
+        keepExistingAttachment = false
+        updateAttachmentPreview()
+    }
+
+    private fun fillEventForEditing(event: Event) {
+        binding.eventContentInput.setText(event.content)
+        binding.eventLinkInput.setText(event.link.orEmpty())
+        binding.eventOffline.isChecked = event.type.equals("OFFLINE", ignoreCase = true)
+        binding.eventOnline.isChecked = !binding.eventOffline.isChecked
+        selectedCoordinates = event.coords
+        updateLocationButton()
+        updateDateLabel()
+        updateSpeakersSummary()
         updateAttachmentPreview()
     }
 
@@ -247,6 +275,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
             link = binding.eventLinkInput.text?.toString(),
             coords = selectedCoordinates,
             mediaFile = selectedMedia,
+            keepExistingAttachment = keepExistingAttachment,
         )
     }
 
@@ -291,9 +320,11 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
                 binding.eventCancelButton.isEnabled = false
             }
             CreateEventState.Success -> {
-                uiActions?.showMessage(getString(R.string.event_created))
+                val wasEditing = viewModel.editingEvent.value != null
+                uiActions?.showMessage(getString(if (wasEditing) R.string.event_updated else R.string.event_created))
                 feedViewModel.loadEvents()
                 clearAttachment()
+                viewModel.resetEventDraft()
                 viewModel.clearCreateEventState()
                 findNavController().navigateUp()
             }
@@ -308,7 +339,9 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
 
     override fun onResume() {
         super.onResume()
-        uiActions?.setScreenTitle(getString(R.string.create_event_title))
+        uiActions?.setScreenTitle(
+            getString(if (viewModel.editingEvent.value == null) R.string.create_event_title else R.string.edit_event_title),
+        )
     }
 
     override fun onDestroyView() {

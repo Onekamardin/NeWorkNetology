@@ -7,6 +7,8 @@ import ru.netology.nework.domain.model.Attachment
 import ru.netology.nework.domain.repository.NeWorkRepository
 
 class PostUseCase @Inject constructor(private val repository: NeWorkRepository) {
+    suspend fun save(post: Post): Post = repository.savePost(post)
+
     suspend fun create(
         content: String,
         link: String? = null,

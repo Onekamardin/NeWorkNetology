@@ -19,6 +19,7 @@ class EventAdapter(
     private val onOpen: (Event) -> Unit,
     private val currentUserId: () -> Long?,
     private val onDelete: (Event) -> Unit,
+    private val onEdit: (Event) -> Unit = {},
 ) : ListAdapter<Event, EventAdapter.EventHolder>(Diff) {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = EventHolder(
         ItemEventBinding.inflate(LayoutInflater.from(parent.context), parent, false),
@@ -33,6 +34,10 @@ class EventAdapter(
         holder.binding.menu.visibility = if (canDelete) View.VISIBLE else View.GONE
         holder.binding.menu.setOnClickListener { button ->
             PopupMenu(button.context, button).apply {
+                menu.add(R.string.edit).setOnMenuItemClickListener {
+                    onEdit(event)
+                    true
+                }
                 menu.add(R.string.delete).setOnMenuItemClickListener {
                     onDelete(event)
                     true

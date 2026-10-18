@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 import ru.netology.nework.domain.model.EventCreateRequest
 import ru.netology.nework.domain.model.Coordinates
 import ru.netology.nework.domain.model.NetworkException
+import ru.netology.nework.domain.model.Event
+import ru.netology.nework.domain.model.Attachment
 import ru.netology.nework.domain.model.MediaFile
 import ru.netology.nework.domain.usecase.MediaUseCase
 import ru.netology.nework.domain.usecase.EventUseCase
@@ -37,6 +39,8 @@ class EventViewModel @Inject constructor(
     val eventDateMillis: StateFlow<Long> = _eventDateMillis.asStateFlow()
     private val _selectedSpeakerIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedSpeakerIds: StateFlow<Set<Long>> = _selectedSpeakerIds.asStateFlow()
+    private val _editingEvent = MutableStateFlow<Event?>(null)
+    val editingEvent: StateFlow<Event?> = _editingEvent.asStateFlow()
 
     fun setEventDate(millis: Long) { _eventDateMillis.value = millis }
     fun setSpeakerSelected(userId: Long, selected: Boolean) {
@@ -44,7 +48,16 @@ class EventViewModel @Inject constructor(
         if (selected) ids.add(userId) else ids.remove(userId)
         _selectedSpeakerIds.value = ids
     }
+
+    fun startEditing(event: Event) {
+        _editingEvent.value = event
+        _createEvent.value = CreateEventState.Idle
+        _eventDateMillis.value = parseEventDate(event.datetime)
+        _selectedSpeakerIds.value = event.speakerIds.toSet()
+    }
+
     fun resetEventDraft() {
+        _editingEvent.value = null
         _createEvent.value = CreateEventState.Idle
         _eventDateMillis.value = System.currentTimeMillis() + 60 * 60 * 1000
         _selectedSpeakerIds.value = emptySet()
@@ -58,6 +71,7 @@ class EventViewModel @Inject constructor(
         link: String? = null,
         coords: Coordinates? = null,
         mediaFile: MediaFile? = null,
+        keepExistingAttachment: Boolean = true,
     ) {
         if (_createEvent.value == CreateEventState.Loading) return
         if (content.isBlank()) { _createEvent.value = CreateEventState.Error("Введите описание события"); return }
@@ -67,14 +81,16 @@ class EventViewModel @Inject constructor(
         createEvent(EventCreateRequest(
             content = content.trim(), datetime = formatter.format(Date(dateMillis)),
             type = if (offline) "OFFLINE" else "ONLINE", speakerIds = speakerIds,
+            attachment = _editingEvent.value?.attachment?.takeIf { keepExistingAttachment },
             link = link?.trim()?.takeIf(String::isNotBlank), coords = coords,
+            id = _editingEvent.value?.id ?: 0,
         ), mediaFile)
     }
 
     private fun createEvent(request: EventCreateRequest, mediaFile: MediaFile?) = viewModelScope.launch {
         _createEvent.value = CreateEventState.Loading
         runCatching {
-            val attachment = mediaFile?.let { mediaUseCase.upload(it) }
+            val attachment: Attachment? = mediaFile?.let { mediaUseCase.upload(it) } ?: request.attachment
             eventUseCase.create(request.copy(attachment = attachment))
         }
             .onSuccess { _createEvent.value = CreateEventState.Success }
@@ -85,4 +101,20 @@ class EventViewModel @Inject constructor(
     }
 
     fun clearCreateEventState() { _createEvent.value = CreateEventState.Idle }
+
+    private fun parseEventDate(value: String): Long {
+        val patterns = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+        )
+        return patterns.firstNotNullOfOrNull { pattern ->
+            runCatching {
+                SimpleDateFormat(pattern, Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.parse(value)?.time
+            }.getOrNull()
+        } ?: System.currentTimeMillis()
+    }
 }

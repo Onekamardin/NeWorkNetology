@@ -80,7 +80,7 @@ class NeWorkRepositoryImpl @Inject constructor(
         coords: Coordinates?,
         attachment: Attachment?,
     ): Post = safeRequest {
-        api.createPost(
+        api.savePost(
             Post(
                 id = 0,
                 content = content,
@@ -91,7 +91,10 @@ class NeWorkRepositoryImpl @Inject constructor(
             ).toDto(),
         )
     }.toDomain()
-    override suspend fun createEvent(request: EventCreateRequest): Event = safeRequest { api.createEvent(request.toDto()) }.toDomain()
+    override suspend fun savePost(post: Post): Post = safeRequest {
+        api.savePost(post.toDto())
+    }.toDomain()
+    override suspend fun createEvent(request: EventCreateRequest): Event = safeRequest { api.saveEvent(request.toDto()) }.toDomain()
 
     override suspend fun authenticate(credentials: Credentials): AuthenticationResult {
         val response = safeRequest { api.authenticate(credentials.toDto()) }

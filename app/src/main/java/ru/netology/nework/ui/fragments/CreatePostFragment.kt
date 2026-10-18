@@ -5,6 +5,7 @@ import ru.netology.nework.ui.viewmodel.PostViewModel
 import ru.netology.nework.ui.viewmodel.FeedViewModel
 import ru.netology.nework.ui.common.SaveableScreen
 import ru.netology.nework.ui.viewmodel.CreatePostState
+import ru.netology.nework.ui.viewmodel.ProfileViewModel
 
 import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,6 +20,7 @@ import ru.netology.nework.ui.utils.EmptyMediaException
 import ru.netology.nework.ui.utils.MediaTooLargeException
 import ru.netology.nework.ui.utils.UnsupportedMediaException
 import ru.netology.nework.ui.utils.readMediaFile
+import ru.netology.nework.ui.utils.loadServerImage
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AlertDialog
@@ -34,16 +36,19 @@ import ru.netology.nework.R
 import ru.netology.nework.databinding.ScreenCreatePostBinding
 import ru.netology.nework.domain.model.User
 import ru.netology.nework.domain.model.Coordinates
+import ru.netology.nework.domain.model.Post
 
 class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen {
     private val viewModel: PostViewModel by activityViewModels()
     private val feedViewModel: FeedViewModel by activityViewModels()
+    private val profileViewModel: ProfileViewModel by activityViewModels()
     private var _binding: ScreenCreatePostBinding? = null
     private val binding get() = _binding!!
     private val uiActions get() = activity as? AppUiActions
     private val selectedMentionIds = mutableSetOf<Long>()
     private var selectedCoordinates: Coordinates? = null
     private var selectedMedia: MediaFile? = null
+    private var keepExistingAttachment = true
     private var mediaLoading = false
     private var pendingCameraUri: Uri? = null
     private var pendingCameraFile: File? = null
@@ -68,10 +73,16 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = ScreenCreatePostBinding.bind(view)
-        uiActions?.setScreenTitle(getString(R.string.create_post_title))
+        val editingPost = viewModel.editingPost.value
+        uiActions?.setScreenTitle(getString(if (editingPost == null) R.string.create_post_title else R.string.edit_post_title))
+        if (editingPost != null) fillPostForEditing(editingPost)
         updateLocationButton()
         updateMentionsButton()
-        binding.cancelButton.setOnClickListener { findNavController().navigateUp() }
+        binding.cancelButton.setOnClickListener {
+            viewModel.clearEditing()
+            viewModel.clearCreatePostState()
+            findNavController().navigateUp()
+        }
         binding.mentionsButton.setOnClickListener { chooseMentionUsers() }
         binding.postLocationButton.setOnClickListener { openLocationPicker() }
         binding.attachmentGalleryButton.setOnClickListener { galleryLauncher.launch("image/*") }
@@ -143,16 +154,22 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     private fun updateAttachmentPreview() {
         val screen = _binding ?: return
         val mediaFile = selectedMedia
-        screen.attachmentName.visibility = if (mediaFile == null && !mediaLoading) View.GONE else View.VISIBLE
-        screen.attachmentRemoveButton.visibility = if (mediaFile == null) View.GONE else View.VISIBLE
-        screen.attachmentPreview.visibility = if (mediaFile?.mimeType?.startsWith("image/") == true) View.VISIBLE else View.GONE
+        val oldAttachment = viewModel.editingPost.value?.attachment?.takeIf { keepExistingAttachment }
+        val imageSelected = mediaFile?.mimeType?.startsWith("image/") == true ||
+            (mediaFile == null && oldAttachment?.type?.let { it.equals("IMAGE", true) || it.startsWith("image/", true) } == true)
+        screen.attachmentName.visibility = if (mediaFile == null && oldAttachment == null && !mediaLoading) View.GONE else View.VISIBLE
+        screen.attachmentRemoveButton.visibility = if (mediaFile == null && oldAttachment == null) View.GONE else View.VISIBLE
+        screen.attachmentPreview.visibility = if (imageSelected) View.VISIBLE else View.GONE
         screen.attachmentName.text = when {
             mediaLoading -> getString(R.string.attachment_loading)
             mediaFile != null -> getString(R.string.attachment_selected, mediaFile.fileName)
+            oldAttachment != null -> getString(R.string.attachment_selected, oldAttachment.url.substringAfterLast('/').substringBefore('?'))
             else -> getString(R.string.attachment_none)
         }
         if (mediaFile?.mimeType?.startsWith("image/") == true) {
             Glide.with(this).load(mediaFile.bytes).centerCrop().into(screen.attachmentPreview)
+        } else if (imageSelected && oldAttachment != null) {
+            screen.attachmentPreview.loadServerImage(oldAttachment.url)
         } else {
             Glide.with(this).clear(screen.attachmentPreview)
         }
@@ -161,6 +178,18 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     private fun clearAttachment() {
         mediaLoading = false
         selectedMedia = null
+        keepExistingAttachment = false
+        updateAttachmentPreview()
+    }
+
+    private fun fillPostForEditing(post: Post) {
+        binding.contentInput.setText(post.content)
+        binding.postLinkInput.setText(post.link.orEmpty())
+        selectedMentionIds.clear()
+        selectedMentionIds.addAll(post.mentionIds)
+        selectedCoordinates = post.coords
+        updateLocationButton()
+        updateMentionsButton()
         updateAttachmentPreview()
     }
 
@@ -206,12 +235,13 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
         binding.contentLayout.error = if (content.isBlank()) getString(R.string.error_required) else null
         if (content.isNotBlank()) {
             val link = binding.postLinkInput.text?.toString()
-            viewModel.createPost(
+            viewModel.savePost(
                 content = content,
                 link = link,
                 mentionIds = selectedMentionIds.toList(),
                 coords = selectedCoordinates,
                 mediaFile = selectedMedia,
+                keepExistingAttachment = keepExistingAttachment,
             )
         }
     }
@@ -257,9 +287,12 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
                 binding.cancelButton.isEnabled = false
             }
             CreatePostState.Success -> {
-                uiActions?.showMessage(getString(R.string.post_created))
+                val wasEditing = viewModel.editingPost.value != null
+                uiActions?.showMessage(getString(if (wasEditing) R.string.post_updated else R.string.post_created))
                 feedViewModel.loadPosts()
+                if (wasEditing) profileViewModel.profile.value.user?.let(profileViewModel::loadProfile)
                 clearAttachment()
+                viewModel.clearEditing()
                 viewModel.clearCreatePostState()
                 findNavController().navigateUp()
             }
@@ -274,7 +307,9 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
 
     override fun onResume() {
         super.onResume()
-        uiActions?.setScreenTitle(getString(R.string.create_post_title))
+        uiActions?.setScreenTitle(
+            getString(if (viewModel.editingPost.value == null) R.string.create_post_title else R.string.edit_post_title),
+        )
     }
 
     override fun onDestroyView() {

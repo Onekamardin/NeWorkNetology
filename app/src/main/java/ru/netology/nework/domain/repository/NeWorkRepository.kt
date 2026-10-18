@@ -31,6 +31,7 @@ interface NeWorkRepository {
     suspend fun leaveEvent(id: Long)
     suspend fun deleteEvent(id: Long)
     suspend fun uploadMedia(file: MediaFile): Attachment
+    suspend fun savePost(post: Post): Post
     suspend fun createPost(content: String, link: String? = null, mentionIds: List<Long> = emptyList(), coords: Coordinates? = null, attachment: Attachment? = null): Post
     suspend fun createEvent(request: EventCreateRequest): Event
     suspend fun authenticate(credentials: Credentials): AuthenticationResult
