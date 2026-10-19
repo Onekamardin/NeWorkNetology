@@ -15,9 +15,7 @@ import ru.netology.nework.data.api.dto.toDto
 import ru.netology.nework.domain.model.AuthenticationResult
 import ru.netology.nework.domain.model.AvatarFile
 import ru.netology.nework.domain.model.Credentials
-import ru.netology.nework.domain.model.Coordinates
 import ru.netology.nework.domain.model.Event
-import ru.netology.nework.domain.model.EventCreateRequest
 import ru.netology.nework.domain.model.Job
 import ru.netology.nework.domain.model.JobCreateRequest
 import ru.netology.nework.domain.model.MediaFile
@@ -34,6 +32,8 @@ class NeWorkRepositoryImpl @Inject constructor(
 ) : NeWorkRepository {
     override suspend fun posts(): List<Post> = safeRequest { api.getPosts() }.map { it.toDomain() }
     override suspend fun events(): List<Event> = safeRequest { api.getEvents() }.map { it.toDomain() }
+    override suspend fun post(id: Long): Post = safeRequest { api.getPost(id) }.toDomain()
+    override suspend fun event(id: Long): Event = safeRequest { api.getEvent(id) }.toDomain()
     override suspend fun users(): List<User> = safeRequest { api.getUsers() }.map { it.toDomain() }
     override suspend fun user(id: Long): User = safeRequest { api.getUser(id) }.toDomain()
     override suspend fun wall(id: Long): List<Post> = safeRequest { api.getWall(id) }.map { it.toDomain() }
@@ -55,12 +55,8 @@ class NeWorkRepositoryImpl @Inject constructor(
     override suspend fun deleteEvent(id: Long) {
         checkResponse(safeRequest { api.deleteEvent(id) })
     }
-    override suspend fun participateEvent(id: Long) {
-        checkResponse(safeRequest { api.participateEvent(id) })
-    }
-    override suspend fun leaveEvent(id: Long) {
-        checkResponse(safeRequest { api.leaveEvent(id) })
-    }
+    override suspend fun participateEvent(id: Long): Event = safeRequest { api.participateEvent(id) }.toDomain()
+    override suspend fun leaveEvent(id: Long): Event = safeRequest { api.leaveEvent(id) }.toDomain()
     override suspend fun uploadMedia(file: MediaFile): Attachment {
         val body = file.bytes.toRequestBody(file.mimeType.toMediaType())
         val part = MultipartBody.Part.createFormData("file", file.fileName, body)
@@ -73,31 +69,13 @@ class NeWorkRepositoryImpl @Inject constructor(
         return Attachment(response.url, type)
     }
 
-    override suspend fun createPost(
-        content: String,
-        link: String?,
-        mentionIds: List<Long>,
-        coords: Coordinates?,
-        attachment: Attachment?,
-    ): Post = safeRequest {
-        api.savePost(
-            Post(
-                id = 0,
-                content = content,
-                link = link,
-                mentionIds = mentionIds,
-                coords = coords,
-                attachment = attachment,
-            ).toDto(),
-        )
-    }.toDomain()
     override suspend fun savePost(post: Post): Post = safeRequest {
         api.savePost(post.toDto())
     }.toDomain()
-    override suspend fun createEvent(request: EventCreateRequest): Event = safeRequest { api.saveEvent(request.toDto()) }.toDomain()
+    override suspend fun saveEvent(event: Event): Event = safeRequest { api.saveEvent(event.toDto()) }.toDomain()
 
     override suspend fun authenticate(credentials: Credentials): AuthenticationResult {
-        val response = safeRequest { api.authenticate(credentials.toDto()) }
+        val response = safeRequest { api.authenticate(credentials.login, credentials.password) }
         if (!response.isSuccessful) return AuthenticationResult.HttpError(response.code())
         val user = response.body()?.toDomain() ?: return AuthenticationResult.HttpError(response.code())
         saveUser(user, credentials.login, responseToken = response.headers()["Authorization"])

@@ -5,12 +5,14 @@ import ru.netology.nework.ui.viewmodel.ProfileViewModel
 import ru.netology.nework.ui.viewmodel.FeedViewModel
 import ru.netology.nework.ui.viewmodel.ProfileState
 import ru.netology.nework.ui.viewmodel.JobOperationState
+import ru.netology.nework.ui.viewmodel.JobOperation
 import ru.netology.nework.ui.viewmodel.AuthViewModel
 import ru.netology.nework.ui.viewmodel.PostViewModel
 import ru.netology.nework.ui.viewmodel.FeedActionResult
 import ru.netology.nework.ui.utils.loadServerImage
 
 import android.os.Bundle
+import androidx.core.os.bundleOf
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -43,13 +45,22 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
             if (authViewModel.isAuthenticated()) viewModel.togglePostLike(post) else uiActions?.showAuthRequired(getString(R.string.auth_required_to_like))
         }, { post ->
             feedViewModel.selectPost(post)
-            findNavController().navigate(R.id.action_global_postDetailFragment)
+            findNavController().navigate(R.id.action_global_postDetailFragment, bundleOf("post_id" to post.id))
         }, { authViewModel.currentUser()?.id }, { post -> uiActions?.confirmDeletePost(post) }, { post ->
             postViewModel.startEditing(post)
             findNavController().navigate(R.id.action_global_createPostFragment)
         })
     }
-    private val jobAdapter by lazy { JobAdapter { uiActions?.confirmDeleteJob(it) } }
+    private val jobAdapter by lazy {
+        JobAdapter(
+            onDelete = { uiActions?.confirmDeleteJob(it) },
+            onEdit = { job ->
+                arguments?.putInt(ARG_TAB, selectedTab)
+                viewModel.startEditingJob(job)
+                findNavController().navigate(R.id.action_global_createJobFragment)
+            },
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,6 +83,7 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
         binding.profileTabs.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab) {
                 selectedTab = tab.position
+                arguments?.putInt(ARG_TAB, selectedTab)
                 showProfile(viewModel.profile.value)
             }
             override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab) = Unit
@@ -97,6 +109,7 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
                 launch { viewModel.profile.collect { showProfile(it) } }
                 launch {
                     feedViewModel.messages.collect { result ->
+                        if (findNavController().currentDestination?.id != R.id.profileFragment) return@collect
                         when (result) {
                             FeedActionResult.PostDeleted -> {
                                 uiActions?.showMessage(getString(R.string.post_deleted))
@@ -109,16 +122,17 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
                 }
                 launch {
                     viewModel.jobOperation.collect { state ->
-                        if (state is JobOperationState.Success) {
+                        if (state is JobOperationState.Success && state.operation == JobOperation.DELETED) {
                             uiActions?.showMessage(getString(R.string.job_deleted))
                             viewModel.clearJobOperationState()
-                            profileUser?.let(viewModel::loadProfile)
+                            viewModel.refreshJobs()
                         } else if (state is JobOperationState.Error) {
                             uiActions?.showMessage(state.message)
                             viewModel.clearJobOperationState()
                         }
                     }
                 }
+                launch { viewModel.messages.collect { uiActions?.showMessage(it) } }
             }
         }
     }
@@ -126,6 +140,11 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
     private fun showProfile(state: ProfileState) {
         val screen = _binding ?: return
         val user = state.user ?: profileUser ?: return
+        profileUser = user
+        uiActions?.setScreenTitle(
+            user.name?.takeIf(String::isNotBlank) ?: getString(R.string.user_fallback),
+            user.login?.let { "@$it" },
+        )
         screen.profileName.text = user.name?.takeIf { it.isNotBlank() } ?: getString(R.string.user_fallback)
         screen.profileLogin.text = user.login?.let { "@$it" }.orEmpty()
         val isMyProfile = user.id == authViewModel.currentUser()?.id
@@ -141,7 +160,7 @@ class ProfileFragment : Fragment(R.layout.screen_profile) {
             screen.profileMessage.visibility = if (message == null) View.GONE else View.VISIBLE
         } else {
             screen.profileRecycler.adapter = jobAdapter
-            jobAdapter.allowDelete = isMyProfile
+            jobAdapter.allowManage = isMyProfile
             jobAdapter.submitList(state.jobs.items)
             screen.profileProgress.visibility = if (state.jobs.loading && state.jobs.items.isEmpty()) View.VISIBLE else View.GONE
             val message = state.jobs.error ?: if (state.jobs.items.isEmpty() && !state.jobs.loading) getString(R.string.profile_jobs_empty) else null

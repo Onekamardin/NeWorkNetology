@@ -3,6 +3,8 @@ package ru.netology.nework.ui.fragments
 import ru.netology.nework.ui.common.AppUiActions
 import ru.netology.nework.ui.viewmodel.ProfileViewModel
 import ru.netology.nework.ui.viewmodel.JobOperationState
+import ru.netology.nework.ui.viewmodel.JobOperation
+import ru.netology.nework.ui.viewmodel.AuthViewModel
 import ru.netology.nework.ui.common.SaveableScreen
 
 import android.app.DatePickerDialog
@@ -24,32 +26,54 @@ import java.util.Locale
 
 class CreateJobFragment : Fragment(R.layout.screen_create_job), SaveableScreen {
     private val viewModel: ProfileViewModel by activityViewModels()
+    private val authViewModel: AuthViewModel by activityViewModels()
     private var _binding: ScreenCreateJobBinding? = null
     private val binding get() = _binding!!
     private val uiActions get() = activity as? AppUiActions
     private var startDate: Calendar? = null
     private var finishDate: Calendar? = null
+    private var completed = false
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = ScreenCreateJobBinding.bind(view)
-        uiActions?.setScreenTitle(getString(R.string.job_create_title))
+        if (!authViewModel.isAuthenticated()) {
+            findNavController().navigateUp()
+            uiActions?.showAuthRequired()
+            return
+        }
+        val savedEditId = savedInstanceState?.getLong("editing_id") ?: 0L
+        if (savedEditId != 0L && viewModel.editingJob.value?.id != savedEditId) {
+            completed = true
+            uiActions?.showMessage(getString(R.string.editor_reopen_required))
+            findNavController().navigateUp()
+            return
+        }
+        val draft = viewModel.jobDraft.value
+        binding.companyInput.setText(draft.name)
+        binding.jobPositionInput.setText(draft.position)
+        binding.jobLinkInput.setText(draft.link)
+        updateTitle()
         startDate = viewModel.jobStartMillis()?.let { Calendar.getInstance().apply { timeInMillis = it } }
         finishDate = viewModel.jobFinishMillis()?.let { Calendar.getInstance().apply { timeInMillis = it } }
         if (startDate != null) updateDatesLabel()
         binding.jobDatesButton.setOnClickListener { chooseStartDate() }
         binding.jobSaveButton.setOnClickListener { save() }
-        binding.jobCancelButton.setOnClickListener { findNavController().navigateUp() }
+        binding.jobCancelButton.setOnClickListener {
+            completed = true
+            viewModel.resetJobDraft()
+            findNavController().navigateUp()
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 viewModel.jobOperation.collect { showSaveResult(it) }
             }
         }
     }
 
     private fun chooseStartDate() {
-        val date = Calendar.getInstance()
+        val date = startDate ?: Calendar.getInstance()
         DatePickerDialog(
             requireContext(),
             { _, year, month, day ->
@@ -57,8 +81,8 @@ class CreateJobFragment : Fragment(R.layout.screen_create_job), SaveableScreen {
                     set(year, month, day, 12, 0, 0)
                     set(Calendar.MILLISECOND, 0)
                 }
-                finishDate = null
                 saveDateDraft()
+                updateDatesLabel()
                 askAboutFinishDate()
             },
             date.get(Calendar.YEAR),
@@ -70,7 +94,11 @@ class CreateJobFragment : Fragment(R.layout.screen_create_job), SaveableScreen {
     private fun askAboutFinishDate() {
         AlertDialog.Builder(requireContext())
             .setMessage(R.string.job_current_choice)
-            .setPositiveButton(android.R.string.yes) { _, _ -> updateDatesLabel() }
+            .setPositiveButton(android.R.string.yes) { _, _ ->
+                finishDate = null
+                saveDateDraft()
+                updateDatesLabel()
+            }
             .setNegativeButton(R.string.job_choose_finish) { _, _ -> chooseFinishDate() }
             .setNeutralButton(android.R.string.cancel, null)
             .show()
@@ -93,9 +121,9 @@ class CreateJobFragment : Fragment(R.layout.screen_create_job), SaveableScreen {
                     updateDatesLabel()
                 }
             },
-            start.get(Calendar.YEAR),
-            start.get(Calendar.MONTH),
-            start.get(Calendar.DAY_OF_MONTH),
+            (finishDate ?: start).get(Calendar.YEAR),
+            (finishDate ?: start).get(Calendar.MONTH),
+            (finishDate ?: start).get(Calendar.DAY_OF_MONTH),
         ).show()
     }
 
@@ -113,45 +141,70 @@ class CreateJobFragment : Fragment(R.layout.screen_create_job), SaveableScreen {
     }
 
     override fun save() {
+        if (!authViewModel.isAuthenticated()) {
+            uiActions?.showAuthRequired()
+            return
+        }
         val name = binding.companyInput.text?.toString()?.trim().orEmpty()
         val position = binding.jobPositionInput.text?.toString()?.trim().orEmpty()
         binding.companyLayout.error = if (name.isBlank()) getString(R.string.error_required) else null
         binding.jobPositionLayout.error = if (position.isBlank()) getString(R.string.error_required) else null
         if (name.isBlank() || position.isBlank()) return
         val link = binding.jobLinkInput.text?.toString()?.trim()
-        viewModel.createJob(name, position, viewModel.jobStartMillis(), viewModel.jobFinishMillis(), link)
+        viewModel.updateJobDraft(name, position, link.orEmpty())
+        viewModel.saveJob(name, position, viewModel.jobStartMillis(), viewModel.jobFinishMillis(), link)
     }
 
     private fun showSaveResult(state: JobOperationState) {
+        val loading = state == JobOperationState.Loading
+        binding.jobProgress.visibility = if (loading) View.VISIBLE else View.GONE
+        binding.jobSaveButton.isEnabled = !loading
+        binding.jobCancelButton.isEnabled = !loading
+        listOf(binding.companyInput, binding.jobPositionInput, binding.jobLinkInput, binding.jobDatesButton)
+            .forEach { it.isEnabled = !loading }
         when (state) {
             JobOperationState.Idle -> Unit
-            JobOperationState.Loading -> {
-                binding.jobProgress.visibility = View.VISIBLE
-                binding.jobSaveButton.isEnabled = false
-                binding.jobCancelButton.isEnabled = false
-            }
-            JobOperationState.Success -> {
-                uiActions?.showMessage(getString(R.string.job_added))
-                viewModel.refreshJobs()
-                viewModel.clearJobOperationState()
-                findNavController().navigateUp()
+            JobOperationState.Loading -> Unit
+            is JobOperationState.Success -> {
+                if (state.operation != JobOperation.DELETED) {
+                    val message = if (state.operation == JobOperation.UPDATED) R.string.job_updated else R.string.job_added
+                    uiActions?.showMessage(getString(message))
+                    completed = true
+                    viewModel.resetJobDraft()
+                    viewModel.refreshJobs()
+                    findNavController().navigateUp()
+                }
             }
             is JobOperationState.Error -> {
-                binding.jobProgress.visibility = View.GONE
-                binding.jobSaveButton.isEnabled = true
-                binding.jobCancelButton.isEnabled = true
                 uiActions?.showMessage(state.message)
                 viewModel.clearJobOperationState()
             }
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putLong("editing_id", viewModel.editingJob.value?.id ?: 0L)
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onResume() {
         super.onResume()
-        uiActions?.setScreenTitle(getString(R.string.job_create_title))
+        updateTitle()
+    }
+
+    private fun updateTitle() {
+        val title = if (viewModel.editingJob.value == null) R.string.job_create_title else R.string.job_edit_title
+        uiActions?.setScreenTitle(getString(title))
     }
 
     override fun onDestroyView() {
+        if (!completed) _binding?.let {
+            viewModel.updateJobDraft(
+                it.companyInput.text?.toString().orEmpty(),
+                it.jobPositionInput.text?.toString().orEmpty(),
+                it.jobLinkInput.text?.toString().orEmpty(),
+            )
+        }
         super.onDestroyView()
         _binding = null
     }

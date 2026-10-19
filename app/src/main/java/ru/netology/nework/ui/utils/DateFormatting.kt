@@ -23,7 +23,7 @@ fun formatServerDate(value: String): String {
 
 fun formatJobDate(value: String): String {
     if (value.isBlank()) return ""
-    return runCatching { Instant.parse(value).atZone(ZoneId.systemDefault()).toLocalDate().format(jobDateFormatter) }
+    return runCatching { LocalDate.parse(value.take(10)).format(jobDateFormatter) }
         .recoverCatching { OffsetDateTime.parse(value).toLocalDate().format(jobDateFormatter) }
         .recoverCatching { LocalDateTime.parse(value).toLocalDate().format(jobDateFormatter) }
         .recoverCatching { LocalDate.parse(value).format(jobDateFormatter) }

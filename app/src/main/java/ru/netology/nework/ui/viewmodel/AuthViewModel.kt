@@ -1,10 +1,10 @@
 package ru.netology.nework.ui.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,10 +30,16 @@ class AuthViewModel @Inject constructor(
 ) : ViewModel() {
     private val _auth = MutableStateFlow<AuthState>(AuthState.Idle)
     val auth: StateFlow<AuthState> = _auth.asStateFlow()
+    private val _user = MutableStateFlow(authUseCase.currentUser())
+    val user = _user.asStateFlow()
 
     fun isAuthenticated(): Boolean = authUseCase.isAuthenticated()
     fun currentUser(): User? = authUseCase.currentUser()
-    fun logout() = authUseCase.logout()
+    fun logout() {
+        authUseCase.logout()
+        _user.value = null
+        _auth.value = AuthState.Idle
+    }
 
     fun login(login: String, password: String) = viewModelScope.launch {
         authenticate(AuthOperation.LOGIN) { authUseCase.login(login, password) }
@@ -47,16 +53,20 @@ class AuthViewModel @Inject constructor(
         operation: AuthOperation,
         request: suspend () -> AuthenticationResult,
     ) {
+        if (_auth.value is AuthState.Loading) return
         _auth.value = AuthState.Loading(operation)
         runCatching { request() }
             .onSuccess { result ->
                 _auth.value = when (result) {
-                    is AuthenticationResult.Success -> AuthState.Success(operation)
+                    is AuthenticationResult.Success -> {
+                        _user.value = result.user
+                        AuthState.Success(operation)
+                    }
                     is AuthenticationResult.HttpError -> AuthState.HttpError(operation, result.code)
                 }
             }
             .onFailure { error ->
-                Log.e("NeWorkAuth", "Authentication request failed", error)
+                if (error is CancellationException) throw error
                 _auth.value = AuthState.NetworkError(
                     operation,
                     error.localizedMessage ?: error.javaClass.simpleName,

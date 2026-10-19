@@ -4,6 +4,8 @@ import ru.netology.nework.ui.common.AppUiActions
 import ru.netology.nework.ui.viewmodel.EventViewModel
 import ru.netology.nework.ui.viewmodel.FeedViewModel
 import ru.netology.nework.ui.viewmodel.CreateEventState
+import ru.netology.nework.ui.viewmodel.AuthViewModel
+import ru.netology.nework.ui.viewmodel.EventDraft
 import ru.netology.nework.ui.common.SaveableScreen
 
 import android.app.DatePickerDialog
@@ -15,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job as CoroutineJob
 import kotlinx.coroutines.withContext
 import ru.netology.nework.domain.model.MediaFile
 import ru.netology.nework.ui.utils.EmptyMediaException
@@ -36,7 +39,6 @@ import ru.netology.nework.BuildConfig
 import ru.netology.nework.R
 import ru.netology.nework.domain.model.User
 import ru.netology.nework.domain.model.Coordinates
-import ru.netology.nework.domain.model.Event
 import ru.netology.nework.databinding.ScreenCreateEventBinding
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -45,6 +47,7 @@ import java.util.Locale
 class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScreen {
     private val viewModel: EventViewModel by activityViewModels()
     private val feedViewModel: FeedViewModel by activityViewModels()
+    private val authViewModel: AuthViewModel by activityViewModels()
     private var _binding: ScreenCreateEventBinding? = null
     private val binding get() = _binding!!
     private val uiActions get() = activity as? AppUiActions
@@ -54,7 +57,10 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     private var keepExistingAttachment = true
     private var mediaLoading = false
     private var pendingCameraUri: Uri? = null
+    private var pendingAttachmentUri: Uri? = null
     private var pendingCameraFile: File? = null
+    private var completed = false
+    private var mediaReadTask: CoroutineJob? = null
 
     private val galleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let(::loadAttachment)
@@ -76,19 +82,43 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = ScreenCreateEventBinding.bind(view)
+        if (savedInstanceState != null) {
+            pendingAttachmentUri = savedInstanceState.getString("attachment_uri")?.let(Uri::parse)
+            pendingCameraUri = savedInstanceState.getString("camera_uri")?.let(Uri::parse)
+            pendingCameraFile = savedInstanceState.getString("camera_file")?.let {
+                File(File(requireContext().cacheDir, "media"), it)
+            }
+        }
+        if (!authViewModel.isAuthenticated()) {
+            findNavController().navigateUp()
+            uiActions?.showAuthRequired()
+            return
+        }
+        val savedEditId = savedInstanceState?.getLong("editing_id") ?: 0L
+        if (savedEditId != 0L && viewModel.editingEvent.value?.id != savedEditId) {
+            completed = true
+            uiActions?.showMessage(getString(R.string.editor_reopen_required))
+            findNavController().navigateUp()
+            return
+        }
         eventDate = Calendar.getInstance().apply { timeInMillis = viewModel.eventDateMillis.value }
         val editingEvent = viewModel.editingEvent.value
         uiActions?.setScreenTitle(getString(if (editingEvent == null) R.string.create_event_title else R.string.edit_event_title))
-        if (editingEvent != null) fillEventForEditing(editingEvent)
+        restoreDraft()
         feedViewModel.loadUsers()
         updateDateLabel()
         binding.eventDateButton.setOnClickListener { chooseDate() }
         binding.eventLocationButton.setOnClickListener { openLocationPicker() }
+        binding.locationRemoveButton.setOnClickListener {
+            selectedCoordinates = null
+            updateLocationButton()
+        }
         observeLocationResult()
         updateLocationButton()
         binding.eventSpeakersButton.setOnClickListener { chooseSpeakers(feedViewModel.users.value.items) }
         updateSpeakersSummary()
         binding.eventCancelButton.setOnClickListener {
+            completed = true
             viewModel.resetEventDraft()
             viewModel.clearCreateEventState()
             findNavController().navigateUp()
@@ -101,8 +131,10 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         binding.attachmentRemoveButton.setOnClickListener { clearAttachment() }
         updateAttachmentPreview()
 
+        pendingAttachmentUri?.let(::loadAttachment)
+
         viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 viewModel.createEvent.collect { showSaveResult(it) }
             }
         }
@@ -128,13 +160,16 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
 
     private fun loadAttachment(uri: Uri) {
         val context = requireContext()
+        mediaReadTask?.cancel()
+        pendingAttachmentUri = uri
         mediaLoading = true
         updateAttachmentPreview()
-        viewLifecycleOwner.lifecycleScope.launch {
+        mediaReadTask = viewLifecycleOwner.lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching { readMediaFile(context, uri) }
             }
             mediaLoading = false
+            pendingAttachmentUri = null
             if (uri == pendingCameraUri) {
                 pendingCameraFile?.delete()
                 pendingCameraUri = null
@@ -181,18 +216,24 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     }
 
     private fun clearAttachment() {
+        mediaReadTask?.cancel()
+        mediaReadTask = null
+        pendingAttachmentUri = null
         mediaLoading = false
         selectedMedia = null
         keepExistingAttachment = false
         updateAttachmentPreview()
     }
 
-    private fun fillEventForEditing(event: Event) {
-        binding.eventContentInput.setText(event.content)
-        binding.eventLinkInput.setText(event.link.orEmpty())
-        binding.eventOffline.isChecked = event.type.equals("OFFLINE", ignoreCase = true)
+    private fun restoreDraft() {
+        val draft = viewModel.draft
+        binding.eventContentInput.setText(draft.content)
+        binding.eventLinkInput.setText(draft.link)
+        binding.eventOffline.isChecked = draft.offline
         binding.eventOnline.isChecked = !binding.eventOffline.isChecked
-        selectedCoordinates = event.coords
+        selectedCoordinates = draft.coords
+        selectedMedia = draft.media
+        keepExistingAttachment = draft.keepAttachment
         updateLocationButton()
         updateDateLabel()
         updateSpeakersSummary()
@@ -203,14 +244,15 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         DatePickerDialog(
             requireContext(),
             { _, year, month, day ->
-                eventDate.set(year, month, day)
+                val selectedDate = (eventDate.clone() as Calendar).apply { set(year, month, day) }
                 TimePickerDialog(
                     requireContext(),
                     { _, hour, minute ->
-                        eventDate.set(Calendar.HOUR_OF_DAY, hour)
-                        eventDate.set(Calendar.MINUTE, minute)
-                        eventDate.set(Calendar.SECOND, 0)
-                        eventDate.set(Calendar.MILLISECOND, 0)
+                        selectedDate.set(Calendar.HOUR_OF_DAY, hour)
+                        selectedDate.set(Calendar.MINUTE, minute)
+                        selectedDate.set(Calendar.SECOND, 0)
+                        selectedDate.set(Calendar.MILLISECOND, 0)
+                        eventDate = selectedDate
                         viewModel.setEventDate(eventDate.timeInMillis)
                         updateDateLabel()
                     },
@@ -247,14 +289,17 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
             it.name?.takeIf(String::isNotBlank) ?: it.login?.takeIf(String::isNotBlank)
             ?: getString(R.string.user_fallback)
         }.toTypedArray()
-        val selectedIds = viewModel.selectedSpeakerIds.value
+        val selectedIds = viewModel.selectedSpeakerIds.value.toMutableSet()
         val checked = BooleanArray(users.size) { users[it].id in selectedIds }
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.event_choose_speakers)
             .setMultiChoiceItems(names, checked) { _, index, isChecked ->
-                viewModel.setSpeakerSelected(users[index].id, isChecked)
+                if (isChecked) selectedIds.add(users[index].id) else selectedIds.remove(users[index].id)
             }
-            .setPositiveButton(android.R.string.ok) { _, _ -> updateSpeakersSummary() }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                users.forEach { viewModel.setSpeakerSelected(it.id, it.id in selectedIds) }
+                updateSpeakersSummary()
+            }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
@@ -267,7 +312,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
         val content = binding.eventContentInput.text?.toString()?.trim().orEmpty()
         binding.eventContentLayout.error = if (content.isBlank()) getString(R.string.error_required) else null
         if (content.isBlank()) return
-        viewModel.createEvent(
+        viewModel.saveEvent(
             content = content,
             dateMillis = eventDate.timeInMillis,
             offline = binding.eventOffline.isChecked,
@@ -280,6 +325,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     }
 
     private fun openLocationPicker() {
+        saveDraft()
         val coordinates = selectedCoordinates?.let { "${it.latitude},${it.longitude}" }.orEmpty()
         findNavController().navigate(
             R.id.action_global_locationPickerFragment,
@@ -305,6 +351,7 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
 
     private fun updateLocationButton() {
         val coordinates = selectedCoordinates
+        binding.locationRemoveButton.visibility = if (coordinates == null) View.GONE else View.VISIBLE
         binding.eventLocationButton.text = if (coordinates == null) {
             getString(R.string.location_choose)
         } else {
@@ -313,15 +360,31 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     }
 
     private fun showSaveResult(state: CreateEventState) {
+        val loading = state == CreateEventState.Loading
+        binding.eventCreateProgress.visibility = if (loading) View.VISIBLE else View.GONE
+        listOf(
+            binding.eventContentInput,
+            binding.eventLinkInput,
+            binding.eventOnline,
+            binding.eventOffline,
+            binding.eventDateButton,
+            binding.eventLocationButton,
+            binding.locationRemoveButton,
+            binding.eventSpeakersButton,
+            binding.attachmentGalleryButton,
+            binding.attachmentCameraButton,
+            binding.attachmentAudioVideoButton,
+            binding.attachmentRemoveButton,
+            binding.eventCancelButton,
+        ).forEach { it.isEnabled = !loading }
         when (state) {
             CreateEventState.Idle -> Unit
-            CreateEventState.Loading -> {
-                binding.eventCreateProgress.visibility = View.VISIBLE
-                binding.eventCancelButton.isEnabled = false
-            }
-            CreateEventState.Success -> {
+            CreateEventState.Loading -> Unit
+            is CreateEventState.Success -> {
                 val wasEditing = viewModel.editingEvent.value != null
+                completed = true
                 uiActions?.showMessage(getString(if (wasEditing) R.string.event_updated else R.string.event_created))
+                feedViewModel.updateEvent(state.event)
                 feedViewModel.loadEvents()
                 clearAttachment()
                 viewModel.resetEventDraft()
@@ -329,12 +392,19 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
                 findNavController().navigateUp()
             }
             is CreateEventState.Error -> {
-                binding.eventCreateProgress.visibility = View.GONE
-                binding.eventCancelButton.isEnabled = true
                 uiActions?.showMessage(state.message)
                 viewModel.clearCreateEventState()
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putLong("editing_id", viewModel.editingEvent.value?.id ?: 0L)
+        outState.putString("attachment_uri", pendingAttachmentUri?.toString())
+        outState.putString("camera_uri", pendingCameraUri?.toString())
+        outState.putString("camera_file", pendingCameraFile?.name)
+        if (!completed) saveDraft()
+        super.onSaveInstanceState(outState)
     }
 
     override fun onResume() {
@@ -345,8 +415,20 @@ class CreateEventFragment : Fragment(R.layout.screen_create_event), SaveableScre
     }
 
     override fun onDestroyView() {
+        mediaReadTask?.cancel()
+        mediaReadTask = null
+        if (!completed) saveDraft()
         mediaLoading = false
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun saveDraft() {
+        val screen = _binding ?: return
+        viewModel.updateDraft(EventDraft(
+            content = screen.eventContentInput.text?.toString().orEmpty(),
+            link = screen.eventLinkInput.text?.toString().orEmpty(), offline = screen.eventOffline.isChecked,
+            coords = selectedCoordinates, media = selectedMedia, keepAttachment = keepExistingAttachment,
+        ))
     }
 }

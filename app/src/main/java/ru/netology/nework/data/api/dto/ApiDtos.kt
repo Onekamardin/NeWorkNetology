@@ -1,5 +1,7 @@
 package ru.netology.nework.data.api.dto
 
+import com.google.gson.annotations.SerializedName
+
 data class UserDto(
     val id: Long,
     val login: String? = null,
@@ -15,13 +17,16 @@ data class PostDto(
     val author: String? = null,
     val authorAvatar: String? = null,
     val content: String = "",
-    val published: String = "",
+    val published: String? = null,
     val likeOwnerIds: List<Long> = emptyList(),
     val likedByMe: Boolean = false,
     val attachment: AttachmentDto? = null,
     val link: String? = null,
     val coords: CoordinatesDto? = null,
     val mentionIds: List<Long> = emptyList(),
+    val authorJob: String? = null,
+    val users: Map<Long, UserPreviewDto> = emptyMap(),
+    val mentionedMe: Boolean = false,
 )
 
 data class EventDto(
@@ -30,7 +35,7 @@ data class EventDto(
     val author: String? = null,
     val authorAvatar: String? = null,
     val content: String = "",
-    val published: String = "",
+    val published: String? = null,
     val datetime: String = "",
     val type: String = "ONLINE",
     val likeOwnerIds: List<Long> = emptyList(),
@@ -40,7 +45,12 @@ data class EventDto(
     val coords: CoordinatesDto? = null,
     val speakerIds: List<Long> = emptyList(),
     val participantsIds: List<Long> = emptyList(),
+    val authorJob: String? = null,
+    val users: Map<Long, UserPreviewDto> = emptyMap(),
+    val participatedByMe: Boolean = false,
 )
+
+data class UserPreviewDto(val name: String, val avatar: String? = null)
 
 data class JobDto(
     val id: Long,
@@ -53,8 +63,10 @@ data class JobDto(
 
 data class AttachmentDto(val url: String, val type: String)
 data class MediaUploadDto(val url: String)
-data class CoordinatesDto(val latitude: Double, val longitude: Double)
-data class CredentialsDto(val login: String, val password: String)
+data class CoordinatesDto(
+    @SerializedName("lat") val latitude: Double,
+    @SerializedName("long") val longitude: Double,
+)
 
 data class JobCreateRequestDto(
     val name: String,
@@ -62,15 +74,6 @@ data class JobCreateRequestDto(
     val start: String,
     val finish: String? = null,
     val link: String? = null,
-)
-
-data class EventCreateRequestDto(
-    val content: String,
-    val datetime: String,
-    val type: String,
-    val speakerIds: List<Long> = emptyList(),
-    val attachment: AttachmentDto? = null,
-    val link: String? = null,
-    val coords: CoordinatesDto? = null,
     val id: Long = 0,
 )
+

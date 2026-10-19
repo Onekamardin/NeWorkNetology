@@ -7,7 +7,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import ru.netology.nework.BuildConfig
@@ -31,10 +30,6 @@ object NetworkModule {
     @Provides @Singleton
     fun provideOkHttp(apiKeyInterceptor: Interceptor): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(apiKeyInterceptor)
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC
-            else HttpLoggingInterceptor.Level.NONE
-        })
         .build()
 
     @Provides @Singleton

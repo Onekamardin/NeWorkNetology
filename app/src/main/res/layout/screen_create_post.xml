@@ -44,6 +44,14 @@
             android:text="@string/location_choose" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/location_remove_button"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/location_remove"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/attachment_gallery_button"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="match_parent"

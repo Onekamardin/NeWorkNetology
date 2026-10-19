@@ -78,11 +78,11 @@ class MainActivity : AppCompatActivity(), AppUiActions {
         menuInflater.inflate(R.menu.app_bar_menu, menu)
         val authenticated = authViewModel.isAuthenticated()
         val savingScreen = currentFragment() is SaveableScreen
-        menu.findItem(R.id.action_save).isVisible = savingScreen
-        menu.findItem(R.id.action_login).isVisible = !authenticated && !savingScreen
-        menu.findItem(R.id.action_register).isVisible = !authenticated && !savingScreen
-        menu.findItem(R.id.action_profile).isVisible = authenticated && !savingScreen
-        menu.findItem(R.id.action_logout).isVisible = authenticated && !savingScreen
+        menu.findItem(R.id.action_save).isVisible = savingScreen && authenticated
+        menu.findItem(R.id.action_login).isVisible = !authenticated
+        menu.findItem(R.id.action_register).isVisible = !authenticated
+        menu.findItem(R.id.action_profile).isVisible = authenticated
+        menu.findItem(R.id.action_logout).isVisible = authenticated
         return true
     }
 
@@ -106,6 +106,7 @@ class MainActivity : AppCompatActivity(), AppUiActions {
             R.id.action_save -> (currentFragment() as? SaveableScreen)?.save()
             R.id.action_logout -> {
                 authViewModel.logout()
+                profileViewModel.clearProfile()
                 invalidateOptionsMenu()
                 showMessage(getString(R.string.logout_success))
                 navController.popBackStack(R.id.feedFragment, false)

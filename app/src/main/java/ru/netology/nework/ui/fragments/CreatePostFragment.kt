@@ -6,6 +6,8 @@ import ru.netology.nework.ui.viewmodel.FeedViewModel
 import ru.netology.nework.ui.common.SaveableScreen
 import ru.netology.nework.ui.viewmodel.CreatePostState
 import ru.netology.nework.ui.viewmodel.ProfileViewModel
+import ru.netology.nework.ui.viewmodel.AuthViewModel
+import ru.netology.nework.ui.viewmodel.PostDraft
 
 import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job as CoroutineJob
 import kotlinx.coroutines.withContext
 import ru.netology.nework.domain.model.MediaFile
 import ru.netology.nework.ui.utils.EmptyMediaException
@@ -23,7 +26,6 @@ import ru.netology.nework.ui.utils.readMediaFile
 import ru.netology.nework.ui.utils.loadServerImage
 import android.os.Bundle
 import android.view.View
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
@@ -34,14 +36,13 @@ import kotlinx.coroutines.launch
 import ru.netology.nework.BuildConfig
 import ru.netology.nework.R
 import ru.netology.nework.databinding.ScreenCreatePostBinding
-import ru.netology.nework.domain.model.User
 import ru.netology.nework.domain.model.Coordinates
-import ru.netology.nework.domain.model.Post
 
 class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen {
     private val viewModel: PostViewModel by activityViewModels()
     private val feedViewModel: FeedViewModel by activityViewModels()
     private val profileViewModel: ProfileViewModel by activityViewModels()
+    private val authViewModel: AuthViewModel by activityViewModels()
     private var _binding: ScreenCreatePostBinding? = null
     private val binding get() = _binding!!
     private val uiActions get() = activity as? AppUiActions
@@ -51,7 +52,10 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     private var keepExistingAttachment = true
     private var mediaLoading = false
     private var pendingCameraUri: Uri? = null
+    private var pendingAttachmentUri: Uri? = null
     private var pendingCameraFile: File? = null
+    private var completed = false
+    private var mediaReadTask: CoroutineJob? = null
 
     private val galleryLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let(::loadAttachment)
@@ -73,18 +77,42 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = ScreenCreatePostBinding.bind(view)
+        if (savedInstanceState != null) {
+            pendingAttachmentUri = savedInstanceState.getString("attachment_uri")?.let(Uri::parse)
+            pendingCameraUri = savedInstanceState.getString("camera_uri")?.let(Uri::parse)
+            pendingCameraFile = savedInstanceState.getString("camera_file")?.let {
+                File(File(requireContext().cacheDir, "media"), it)
+            }
+        }
+        if (!authViewModel.isAuthenticated()) {
+            findNavController().navigateUp()
+            uiActions?.showAuthRequired()
+            return
+        }
+        val savedEditId = savedInstanceState?.getLong("editing_id") ?: 0L
+        if (savedEditId != 0L && viewModel.editingPost.value?.id != savedEditId) {
+            completed = true
+            uiActions?.showMessage(getString(R.string.editor_reopen_required))
+            findNavController().navigateUp()
+            return
+        }
         val editingPost = viewModel.editingPost.value
         uiActions?.setScreenTitle(getString(if (editingPost == null) R.string.create_post_title else R.string.edit_post_title))
-        if (editingPost != null) fillPostForEditing(editingPost)
+        restoreDraft()
         updateLocationButton()
         updateMentionsButton()
         binding.cancelButton.setOnClickListener {
+            completed = true
             viewModel.clearEditing()
             viewModel.clearCreatePostState()
             findNavController().navigateUp()
         }
         binding.mentionsButton.setOnClickListener { chooseMentionUsers() }
         binding.postLocationButton.setOnClickListener { openLocationPicker() }
+        binding.locationRemoveButton.setOnClickListener {
+            selectedCoordinates = null
+            updateLocationButton()
+        }
         binding.attachmentGalleryButton.setOnClickListener { galleryLauncher.launch("image/*") }
         binding.attachmentCameraButton.setOnClickListener { openCamera() }
         binding.attachmentAudioVideoButton.setOnClickListener {
@@ -93,11 +121,14 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
         binding.attachmentRemoveButton.setOnClickListener { clearAttachment() }
         updateAttachmentPreview()
         observeLocationResult()
+        observeMentionResult()
         updateLocationButton()
         updateMentionsButton()
 
+        pendingAttachmentUri?.let(::loadAttachment)
+
         viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 viewModel.createPost.collect { showSaveResult(it) }
             }
         }
@@ -123,13 +154,16 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
 
     private fun loadAttachment(uri: Uri) {
         val context = requireContext()
+        mediaReadTask?.cancel()
+        pendingAttachmentUri = uri
         mediaLoading = true
         updateAttachmentPreview()
-        viewLifecycleOwner.lifecycleScope.launch {
+        mediaReadTask = viewLifecycleOwner.lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching { readMediaFile(context, uri) }
             }
             mediaLoading = false
+            pendingAttachmentUri = null
             if (uri == pendingCameraUri) {
                 pendingCameraFile?.delete()
                 pendingCameraUri = null
@@ -176,47 +210,47 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     }
 
     private fun clearAttachment() {
+        mediaReadTask?.cancel()
+        mediaReadTask = null
+        pendingAttachmentUri = null
         mediaLoading = false
         selectedMedia = null
         keepExistingAttachment = false
         updateAttachmentPreview()
     }
 
-    private fun fillPostForEditing(post: Post) {
-        binding.contentInput.setText(post.content)
-        binding.postLinkInput.setText(post.link.orEmpty())
+    private fun restoreDraft() {
+        val draft = viewModel.draft
+        binding.contentInput.setText(draft.content)
+        binding.postLinkInput.setText(draft.link)
         selectedMentionIds.clear()
-        selectedMentionIds.addAll(post.mentionIds)
-        selectedCoordinates = post.coords
+        selectedMentionIds.addAll(draft.mentionIds)
+        selectedCoordinates = draft.coords
+        selectedMedia = draft.media
+        keepExistingAttachment = draft.keepAttachment
         updateLocationButton()
         updateMentionsButton()
         updateAttachmentPreview()
     }
 
     private fun chooseMentionUsers() {
-        val users = feedViewModel.users.value.items
-        if (users.isEmpty()) {
-            uiActions?.showMessage(getString(R.string.post_mentions_loading))
-            feedViewModel.loadUsers()
-            return
-        }
-
-        val names = users.map { userName(it) }.toTypedArray()
-        val checkedUsers = BooleanArray(users.size) { users[it].id in selectedMentionIds }
-        AlertDialog.Builder(requireContext())
-            .setTitle(R.string.post_choose_mentions)
-            .setMultiChoiceItems(names, checkedUsers) { _, index, checked ->
-                val userId = users[index].id
-                if (checked) selectedMentionIds.add(userId) else selectedMentionIds.remove(userId)
-            }
-            .setPositiveButton(android.R.string.ok) { _, _ -> updateMentionsButton() }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        saveDraft()
+        findNavController().navigate(
+            R.id.action_global_userPickerFragment,
+            bundleOf(UserPickerFragment.ARG_SELECTED_IDS to selectedMentionIds.toLongArray()),
+        )
     }
 
-    private fun userName(user: User): String = user.name?.takeIf(String::isNotBlank)
-        ?: user.login?.takeIf(String::isNotBlank)?.let { "@$it" }
-        ?: getString(R.string.detail_user_fallback, user.id)
+    private fun observeMentionResult() {
+        val handle = findNavController().currentBackStackEntry?.savedStateHandle ?: return
+        handle.getLiveData<LongArray>(UserPickerFragment.RESULT_KEY).observe(viewLifecycleOwner) { ids ->
+            selectedMentionIds.clear()
+            selectedMentionIds.addAll(ids.toList())
+            updateMentionsButton()
+            saveDraft()
+            handle.remove<LongArray>(UserPickerFragment.RESULT_KEY)
+        }
+    }
 
     private fun updateMentionsButton() {
         binding.mentionsButton.text = if (selectedMentionIds.isEmpty()) {
@@ -247,6 +281,7 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     }
 
     private fun openLocationPicker() {
+        saveDraft()
         val coordinates = selectedCoordinates?.let { "${it.latitude},${it.longitude}" }.orEmpty()
         findNavController().navigate(
             R.id.action_global_locationPickerFragment,
@@ -272,6 +307,7 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
 
     private fun updateLocationButton() {
         val coordinates = selectedCoordinates
+        binding.locationRemoveButton.visibility = if (coordinates == null) View.GONE else View.VISIBLE
         binding.postLocationButton.text = if (coordinates == null) {
             getString(R.string.location_choose)
         } else {
@@ -280,15 +316,28 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     }
 
     private fun showSaveResult(state: CreatePostState) {
+        val loading = state == CreatePostState.Loading
+        binding.createProgress.visibility = if (loading) View.VISIBLE else View.GONE
+        listOf(
+            binding.contentInput,
+            binding.postLinkInput,
+            binding.mentionsButton,
+            binding.postLocationButton,
+            binding.locationRemoveButton,
+            binding.attachmentGalleryButton,
+            binding.attachmentCameraButton,
+            binding.attachmentAudioVideoButton,
+            binding.attachmentRemoveButton,
+            binding.cancelButton,
+        ).forEach { it.isEnabled = !loading }
         when (state) {
             CreatePostState.Idle -> Unit
-            CreatePostState.Loading -> {
-                binding.createProgress.visibility = View.VISIBLE
-                binding.cancelButton.isEnabled = false
-            }
-            CreatePostState.Success -> {
+            CreatePostState.Loading -> Unit
+            is CreatePostState.Success -> {
                 val wasEditing = viewModel.editingPost.value != null
+                completed = true
                 uiActions?.showMessage(getString(if (wasEditing) R.string.post_updated else R.string.post_created))
+                feedViewModel.updatePost(state.post)
                 feedViewModel.loadPosts()
                 if (wasEditing) profileViewModel.profile.value.user?.let(profileViewModel::loadProfile)
                 clearAttachment()
@@ -297,12 +346,19 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
                 findNavController().navigateUp()
             }
             is CreatePostState.Error -> {
-                binding.createProgress.visibility = View.GONE
-                binding.cancelButton.isEnabled = true
                 uiActions?.showMessage(state.message)
                 viewModel.clearCreatePostState()
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putLong("editing_id", viewModel.editingPost.value?.id ?: 0L)
+        outState.putString("attachment_uri", pendingAttachmentUri?.toString())
+        outState.putString("camera_uri", pendingCameraUri?.toString())
+        outState.putString("camera_file", pendingCameraFile?.name)
+        if (!completed) saveDraft()
+        super.onSaveInstanceState(outState)
     }
 
     override fun onResume() {
@@ -313,8 +369,21 @@ class CreatePostFragment : Fragment(R.layout.screen_create_post), SaveableScreen
     }
 
     override fun onDestroyView() {
+        mediaReadTask?.cancel()
+        mediaReadTask = null
+        if (!completed) saveDraft()
         mediaLoading = false
         super.onDestroyView()
         _binding = null
+    }
+
+    private fun saveDraft() {
+        val screen = _binding ?: return
+        viewModel.updateDraft(PostDraft(
+            content = screen.contentInput.text?.toString().orEmpty(),
+            link = screen.postLinkInput.text?.toString().orEmpty(),
+            mentionIds = selectedMentionIds.toSet(), coords = selectedCoordinates,
+            media = selectedMedia, keepAttachment = keepExistingAttachment,
+        ))
     }
 }

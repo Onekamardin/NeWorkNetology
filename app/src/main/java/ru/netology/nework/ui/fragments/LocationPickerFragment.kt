@@ -13,6 +13,7 @@ import org.maplibre.android.annotations.MarkerOptions
 import ru.netology.nework.R
 import ru.netology.nework.databinding.ScreenLocationPickerBinding
 
+@Suppress("DEPRECATION")
 class LocationPickerFragment : Fragment(R.layout.screen_location_picker) {
     private var _binding: ScreenLocationPickerBinding? = null
     private val binding get() = _binding!!
@@ -25,7 +26,8 @@ class LocationPickerFragment : Fragment(R.layout.screen_location_picker) {
         _binding = ScreenLocationPickerBinding.bind(view)
         mapView = binding.locationMap
         mapView?.onCreate(savedInstanceState)
-        readInitialCoordinates()
+        if (savedInstanceState == null) readInitialCoordinates()
+        else selectedPoint = LatLng(savedInstanceState.getDouble("latitude"), savedInstanceState.getDouble("longitude"))
         val readOnly = arguments?.getBoolean(ARG_READ_ONLY) == true
         if (readOnly) {
             binding.locationControls.visibility = View.GONE
@@ -35,8 +37,10 @@ class LocationPickerFragment : Fragment(R.layout.screen_location_picker) {
             getString(if (readOnly) R.string.detail_map_title else R.string.location_picker_title),
         )
         mapView?.getMapAsync { loadedMap ->
+            if (_binding == null) return@getMapAsync
             loadedMap.cameraPosition = CameraPosition.Builder().target(selectedPoint).zoom(11.0).build()
             loadedMap.setStyle(MAP_STYLE) {
+                if (_binding == null) return@setStyle
                 putMarker(loadedMap, selectedPoint)
                 if (!readOnly) {
                     loadedMap.addOnMapClickListener { point ->
@@ -99,6 +103,8 @@ class LocationPickerFragment : Fragment(R.layout.screen_location_picker) {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putDouble("latitude", selectedPoint.latitude)
+        outState.putDouble("longitude", selectedPoint.longitude)
         mapView?.onSaveInstanceState(outState)
         super.onSaveInstanceState(outState)
     }

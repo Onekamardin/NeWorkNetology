@@ -3,6 +3,10 @@
     <string name="posts">Посты</string>
     <string name="events">События</string>
     <string name="users">Пользователи</string>
+    <string name="user_picker_title">Упомянуть пользователей</string>
+    <string name="user_choose">Выбрать пользователя</string>
+    <string name="retry">Повторить</string>
+    <string name="editor_reopen_required">Приложение было перезапущено. Откройте запись для редактирования ещё раз.</string>
     <string name="login">Вход</string>
     <string name="login_field">Логин</string>
     <string name="register">Регистрация</string>
@@ -49,9 +53,11 @@
     <string name="job_dates_summary">%1$s — %2$s</string>
     <string name="job_current_choice">Продолжаю работать в этой компании</string>
     <string name="job_added">Место работы добавлено</string>
+    <string name="job_updated">Место работы изменено</string>
     <string name="job_deleted">Место работы удалено</string>
     <string name="job_delete_confirm">Удалить место работы «%1$s»?</string>
     <string name="job_create_title">Новое место работы</string>
+    <string name="job_edit_title">Изменить место работы</string>
     <string name="job_choose_finish">Выбрать дату окончания</string>
     <string name="job_finish_before_start">Дата окончания не может быть раньше даты начала</string>
     <string name="delete">Удалить</string>
@@ -79,7 +85,7 @@
     <string name="event_date_format">Состоится: %1$s</string>
     <string name="event_created">Событие создано</string>
     <string name="event_updated">Событие изменено</string>
-    <string name="auth_required_to_create">Чтобы создать пост, войдите или зарегистрируйтесь</string>
+    <string name="auth_required_to_create">Чтобы продолжить, войдите или зарегистрируйтесь</string>
     <string name="create_post_title">Новый пост</string>
     <string name="edit_post_title">Изменить пост</string>
     <string name="post_content_hint">Текст поста</string>
@@ -92,7 +98,6 @@
     <string name="location_choose">Выбрать место на карте</string>
     <string name="post_choose_mentions">Упомянуть пользователей</string>
     <string name="post_mentions_selected">Выбрано пользователей: %1$d</string>
-    <string name="post_mentions_loading">Загружаем пользователей. Попробуйте ещё раз через несколько секунд.</string>
     <string name="post_created">Пост опубликован</string>
     <string name="post_updated">Пост изменён</string>
     <string name="save">Сохранить</string>
@@ -140,4 +145,6 @@
     <string name="attachment_camera_error">Не удалось открыть камеру</string>
     <string name="attachment_open_video">Открыть видео</string>
     <string name="attachment_open_audio">Открыть аудио</string>
+    <string name="detail_event_dates">Опубликовано: %1$s\n%2$s</string>
+    <string name="location_remove">Убрать место</string>
 </resources>

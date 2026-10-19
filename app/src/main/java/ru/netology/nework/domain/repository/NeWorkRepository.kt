@@ -3,9 +3,7 @@ package ru.netology.nework.domain.repository
 import ru.netology.nework.domain.model.AuthenticationResult
 import ru.netology.nework.domain.model.AvatarFile
 import ru.netology.nework.domain.model.Credentials
-import ru.netology.nework.domain.model.Coordinates
 import ru.netology.nework.domain.model.Event
-import ru.netology.nework.domain.model.EventCreateRequest
 import ru.netology.nework.domain.model.Job
 import ru.netology.nework.domain.model.JobCreateRequest
 import ru.netology.nework.domain.model.MediaFile
@@ -16,6 +14,8 @@ import ru.netology.nework.domain.model.User
 interface NeWorkRepository {
     suspend fun posts(): List<Post>
     suspend fun events(): List<Event>
+    suspend fun post(id: Long): Post
+    suspend fun event(id: Long): Event
     suspend fun users(): List<User>
     suspend fun user(id: Long): User
     suspend fun wall(id: Long): List<Post>
@@ -27,13 +27,12 @@ interface NeWorkRepository {
     suspend fun likeEvent(id: Long): Event
     suspend fun unlikeEvent(id: Long): Event
     suspend fun deletePost(id: Long)
-    suspend fun participateEvent(id: Long)
-    suspend fun leaveEvent(id: Long)
+    suspend fun participateEvent(id: Long): Event
+    suspend fun leaveEvent(id: Long): Event
     suspend fun deleteEvent(id: Long)
     suspend fun uploadMedia(file: MediaFile): Attachment
     suspend fun savePost(post: Post): Post
-    suspend fun createPost(content: String, link: String? = null, mentionIds: List<Long> = emptyList(), coords: Coordinates? = null, attachment: Attachment? = null): Post
-    suspend fun createEvent(request: EventCreateRequest): Event
+    suspend fun saveEvent(event: Event): Event
     suspend fun authenticate(credentials: Credentials): AuthenticationResult
     suspend fun register(login: String, name: String, password: String, avatar: AvatarFile?): AuthenticationResult
     fun logout()

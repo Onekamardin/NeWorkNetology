@@ -65,7 +65,7 @@ class LoginFragment : Fragment(R.layout.screen_login) {
             is AuthState.HttpError -> if (state.operation == AuthOperation.LOGIN) {
                 binding.loginProgress.visibility = View.GONE
                 binding.loginSubmit.isEnabled = true
-                val message = if (state.code == 400) getString(R.string.login_bad_credentials)
+                val message = if (state.code in listOf(400, 401, 404)) getString(R.string.login_bad_credentials)
                 else getString(R.string.server_error_code, state.code)
                 uiActions?.showMessage(message)
                 viewModel.clearAuthState()

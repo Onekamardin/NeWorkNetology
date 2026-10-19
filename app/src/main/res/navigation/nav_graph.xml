@@ -91,6 +91,15 @@
         android:name="ru.netology.nework.ui.fragments.CreateJobFragment"
         android:label="@string/job_create_title" />
 
+    <fragment
+        android:id="@+id/userPickerFragment"
+        android:name="ru.netology.nework.ui.fragments.UserPickerFragment"
+        android:label="@string/user_picker_title" />
+
+    <action
+        android:id="@+id/action_global_userPickerFragment"
+        app:destination="@id/userPickerFragment" />
+
     <action
         android:id="@+id/action_global_feedFragment"
         app:destination="@id/feedFragment" />

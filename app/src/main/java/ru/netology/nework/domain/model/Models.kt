@@ -22,6 +22,9 @@ data class Post(
     val link: String? = null,
     val coords: Coordinates? = null,
     val mentionIds: List<Long> = emptyList(),
+    val authorJob: String? = null,
+    val users: Map<Long, UserPreview> = emptyMap(),
+    val mentionedMe: Boolean = false,
 )
 
 data class Event(
@@ -40,18 +43,12 @@ data class Event(
     val coords: Coordinates? = null,
     val speakerIds: List<Long> = emptyList(),
     val participantsIds: List<Long> = emptyList(),
+    val authorJob: String? = null,
+    val users: Map<Long, UserPreview> = emptyMap(),
+    val participatedByMe: Boolean = false,
 )
 
-data class EventCreateRequest(
-    val content: String,
-    val datetime: String,
-    val type: String,
-    val speakerIds: List<Long> = emptyList(),
-    val attachment: Attachment? = null,
-    val link: String? = null,
-    val coords: Coordinates? = null,
-    val id: Long = 0,
-)
+data class UserPreview(val name: String, val avatar: String? = null)
 
 data class Attachment(val url: String, val type: String)
 data class Coordinates(val latitude: Double, val longitude: Double)
@@ -70,6 +67,7 @@ data class JobCreateRequest(
     val start: String,
     val finish: String? = null,
     val link: String? = null,
+    val id: Long = 0,
 )
 
 data class Credentials(val login: String, val password: String)

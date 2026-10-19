@@ -8,10 +8,9 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Multipart
 import retrofit2.http.Part
+import retrofit2.http.Query
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import ru.netology.nework.data.api.dto.CredentialsDto
-import ru.netology.nework.data.api.dto.EventCreateRequestDto
 import ru.netology.nework.data.api.dto.EventDto
 import ru.netology.nework.data.api.dto.JobCreateRequestDto
 import ru.netology.nework.data.api.dto.JobDto
@@ -24,8 +23,8 @@ interface NeWorkApi {
     @GET("events") suspend fun getEvents(): List<EventDto>
     @GET("users") suspend fun getUsers(): List<UserDto>
     @GET("users/{id}") suspend fun getUser(@Path("id") id: Long): UserDto
-    @GET("users/{id}/wall") suspend fun getWall(@Path("id") id: Long): List<PostDto>
-    @GET("users/{id}/jobs") suspend fun getJobs(@Path("id") id: Long): List<JobDto>
+    @GET("{id}/wall") suspend fun getWall(@Path("id") id: Long): List<PostDto>
+    @GET("{id}/jobs") suspend fun getJobs(@Path("id") id: Long): List<JobDto>
     @POST("my/jobs") suspend fun createJob(@Body body: JobCreateRequestDto): JobDto
     @DELETE("my/jobs/{id}") suspend fun deleteJob(@Path("id") id: Long): Response<Unit>
 
@@ -34,7 +33,8 @@ interface NeWorkApi {
     @POST("events/{id}/likes") suspend fun likeEvent(@Path("id") id: Long): EventDto
     @DELETE("events/{id}/likes") suspend fun unlikeEvent(@Path("id") id: Long): EventDto
 
-    @POST("users/authentication") suspend fun authenticate(@Body body: CredentialsDto): Response<UserDto>
+    @POST("users/authentication")
+    suspend fun authenticate(@Query("login") login: String, @Query("pass") password: String): Response<UserDto>
     @Multipart
     @POST("users/registration")
     suspend fun register(
@@ -48,9 +48,11 @@ interface NeWorkApi {
     suspend fun uploadMedia(@Part file: MultipartBody.Part): MediaUploadDto
 
     @POST("posts") suspend fun savePost(@Body body: PostDto): PostDto
+    @GET("posts/{id}") suspend fun getPost(@Path("id") id: Long): PostDto
     @DELETE("posts/{id}") suspend fun deletePost(@Path("id") id: Long): Response<Unit>
-    @POST("events") suspend fun saveEvent(@Body body: EventCreateRequestDto): EventDto
+    @POST("events") suspend fun saveEvent(@Body body: EventDto): EventDto
+    @GET("events/{id}") suspend fun getEvent(@Path("id") id: Long): EventDto
     @DELETE("events/{id}") suspend fun deleteEvent(@Path("id") id: Long): Response<Unit>
-    @POST("events/{id}/participants") suspend fun participateEvent(@Path("id") id: Long): Response<Unit>
-    @DELETE("events/{id}/participants") suspend fun leaveEvent(@Path("id") id: Long): Response<Unit>
+    @POST("events/{id}/participants") suspend fun participateEvent(@Path("id") id: Long): EventDto
+    @DELETE("events/{id}/participants") suspend fun leaveEvent(@Path("id") id: Long): EventDto
 }

@@ -8,6 +8,7 @@ import ru.netology.nework.ui.viewmodel.EventViewModel
 import ru.netology.nework.ui.viewmodel.FeedState
 import ru.netology.nework.ui.viewmodel.FeedActionResult
 import android.os.Bundle
+import androidx.core.os.bundleOf
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -48,14 +49,14 @@ class FeedFragment : Fragment(R.layout.screen_feed) {
 
     private val postAdapter = PostAdapter(::onPostLike, { post ->
         viewModel.selectPost(post)
-        findNavController().navigate(R.id.action_global_postDetailFragment)
+        findNavController().navigate(R.id.action_global_postDetailFragment, bundleOf("post_id" to post.id))
     }, { authViewModel.currentUser()?.id }, { post -> uiActions?.confirmDeletePost(post) }, { post ->
         postViewModel.startEditing(post)
         findNavController().navigate(R.id.action_global_createPostFragment)
     })
     private val eventAdapter = EventAdapter(::onEventLike, { event ->
         viewModel.selectEvent(event)
-        findNavController().navigate(R.id.action_global_eventDetailFragment)
+        findNavController().navigate(R.id.action_global_eventDetailFragment, bundleOf("event_id" to event.id))
     }, { authViewModel.currentUser()?.id }, { event -> uiActions?.confirmDeleteEvent(event) }, { event ->
         eventViewModel.startEditing(event)
         findNavController().navigate(R.id.action_global_createEventFragment)
@@ -68,9 +69,20 @@ class FeedFragment : Fragment(R.layout.screen_feed) {
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.setHasFixedSize(true)
         selectTab(selectedTab)
+        var displayedUserId = authViewModel.currentUser()?.id
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    authViewModel.user.collect { user ->
+                        if (displayedUserId != user?.id) {
+                            displayedUserId = user?.id
+                            postAdapter.notifyItemRangeChanged(0, postAdapter.itemCount)
+                            eventAdapter.notifyItemRangeChanged(0, eventAdapter.itemCount)
+                            selectTab(selectedTab)
+                        }
+                    }
+                }
                 launch { viewModel.posts.collect { showPosts(it) } }
                 launch { viewModel.events.collect { showEvents(it) } }
                 launch { viewModel.users.collect { showUsers(it) } }

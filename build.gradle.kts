@@ -1,7 +1,10 @@
 buildscript {
     repositories {
         google()
-        mavenCentral()
+        maven {
+            name = "MavenCentralMirror"
+            url = uri("https://maven-central.storage-download.googleapis.com/maven2/")
+        }
     }
     dependencies {
         classpath("com.google.dagger:hilt-android-gradle-plugin:2.52")
