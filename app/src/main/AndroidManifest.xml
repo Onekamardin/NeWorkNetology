@@ -4,7 +4,7 @@
         android:name=".NeWorkApplication"
         android:allowBackup="true"
         android:label="NeWork"
-        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/Theme.NeWork">
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -78,4 +78,18 @@ data class MediaFile(
     val fileName: String,
     val mimeType: String,
     val bytes: ByteArray,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        other is MediaFile &&
+                fileName == other.fileName &&
+                mimeType == other.mimeType &&
+                bytes.contentEquals(other.bytes)
+
+    override fun hashCode(): Int {
+        var result = fileName.hashCode()
+        result = 31 * result + mimeType.hashCode()
+        result = 31 * result + bytes.contentHashCode()
+        return result
+    }
+}
+
